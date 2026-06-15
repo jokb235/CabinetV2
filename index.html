@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cabinet Sheet Goods Calculator</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --ink: #1f2933;
+    --muted: #6b7280;
+    --line: #e2e8f0;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --good: #047857;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--ink);
+    color: #fff;
+    padding: 20px 24px;
+  }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  header p { margin: 4px 0 0; color: #cbd5e1; font-size: 0.9rem; }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card h2 { margin: 0 0 16px; font-size: 1.1rem; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+  .field .hint { font-weight: 400; color: var(--muted); font-size: 0.78rem; }
+  input, select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: #fff;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  details { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 12px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--accent); }
+  .note { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+
+  .total-box {
+    background: var(--accent-soft);
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .total-box .big { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .total-box .sub { color: var(--muted); font-size: 0.85rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .03em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tfoot td, .grp td { font-weight: 700; }
+  .grp td { background: #f8fafc; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    background: #f1f5f9; font-size: 0.78rem; font-weight: 600;
+  }
+  caption { text-align: left; font-weight: 700; margin-bottom: 8px; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cabinet Sheet Goods Calculator</h1>
+  <p>Estimate the square footage of plywood / sheet goods needed to build your cabinets.</p>
+</header>
+
+<div class="wrap">
+  <!-- INPUTS -->
+  <section class="card">
+    <h2>Cabinet Inputs</h2>
+
+    <div class="field">
+      <label>Overall dimensions <span class="hint">(inches)</span></label>
+      <div class="row">
+        <input id="width"  type="number" min="0" step="0.125" value="30" aria-label="Width" placeholder="Width">
+        <input id="height" type="number" min="0" step="0.125" value="34.5" aria-label="Height" placeholder="Height">
+        <input id="depth"  type="number" min="0" step="0.125" value="24" aria-label="Depth" placeholder="Depth">
+      </div>
+      <div class="hint" style="margin-top:4px;">Width &nbsp;·&nbsp; Height &nbsp;·&nbsp; Depth</div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Doors</label>
+        <input id="doors" type="number" min="0" step="1" value="2">
+      </div>
+      <div class="field">
+        <label>Drawers</label>
+        <input id="drawers" type="number" min="0" step="1" value="0">
+      </div>
+      <div class="field">
+        <label>Shelves</label>
+        <input id="shelves" type="number" min="0" step="1" value="1">
+      </div>
+    </div>
+
+    <h2 style="margin-top:8px;">Material Thickness</h2>
+    <div class="row2">
+      <div class="field">
+        <label>Carcass / Doors <span class="hint">(sides, top, bottom, fronts)</span></label>
+        <select id="tCarcass"></select>
+      </div>
+      <div class="field">
+        <label>Cabinet Back</label>
+        <select id="tBack"></select>
+      </div>
+      <div class="field">
+        <label>Shelves</label>
+        <select id="tShelf"></select>
+      </div>
+      <div class="field">
+        <label>Drawer Boxes <span class="hint">(sides/front/back)</span></label>
+        <select id="tDrawerBox"></select>
+      </div>
+      <div class="field">
+        <label>Drawer Bottoms</label>
+        <select id="tDrawerBottom"></select>
+      </div>
+      <div class="field">
+        <label>Quantity of this cabinet</label>
+        <input id="qty" type="number" min="1" step="1" value="1">
+      </div>
+    </div>
+
+    <details>
+      <summary>Advanced construction assumptions</summary>
+      <div class="row2" style="margin-top:12px;">
+        <div class="field">
+          <label>Drawer box height <span class="hint">(in)</span></label>
+          <input id="drawerBoxH" type="number" min="0" step="0.25" value="4">
+        </div>
+        <div class="field">
+          <label>Drawer face height <span class="hint">(in)</span></label>
+          <input id="drawerFaceH" type="number" min="0" step="0.25" value="6">
+        </div>
+        <div class="field">
+          <label>Side clearance per side <span class="hint">(in)</span></label>
+          <input id="clearance" type="number" min="0" step="0.0625" value="0.5">
+        </div>
+        <div class="field">
+          <label>Sheet size for sheet count <span class="hint">(w × h, in)</span></label>
+          <div class="row2">
+            <input id="sheetW" type="number" min="1" step="1" value="48">
+            <input id="sheetH" type="number" min="1" step="1" value="96">
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        Defaults reflect a typical frameless base cabinet. Carcass sides run full height &amp; depth;
+        top/bottom and shelves span between the sides; the back covers the full opening. Door fronts
+        fill the area above any drawer stack. Adjust the values above to match your construction style.
+      </p>
+    </details>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="card">
+    <h2>Results</h2>
+    <div class="total-box">
+      <div class="big" id="grandTotal">0 ft²</div>
+      <div class="sub" id="grandSub">total sheet goods</div>
+    </div>
+
+    <table id="thicknessTable">
+      <caption>Totals by thickness <span class="muted" id="qtyLabel"></span></caption>
+      <thead>
+        <tr>
+          <th>Thickness</th>
+          <th class="num">Per cabinet (ft²)</th>
+          <th class="num">Total (ft²)</th>
+          <th class="num">Sheets</th>
+        </tr>
+      </thead>
+      <tbody id="thicknessBody"></tbody>
+    </table>
+
+    <details style="margin-top:16px;">
+      <summary>Per-cabinet component breakdown</summary>
+      <table style="margin-top:12px;">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th class="num">Qty</th>
+            <th>Size (in)</th>
+            <th>Thick</th>
+            <th class="num">ft²</th>
+          </tr>
+        </thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+    </details>
+    <p class="note" id="sheetNote"></p>
+  </section>
+</div>
+
+<script>
+const THICKNESSES = [
+  { v: 0.25,   label: '1/4"' },
+  { v: 0.375,  label: '3/8"' },
+  { v: 0.5,    label: '1/2"' },
+  { v: 0.625,  label: '5/8"' },
+  { v: 0.75,   label: '3/4"' },
+  { v: 1,      label: '1"' },
+];
+
+// populate thickness selects with defaults
+function fillSelect(id, def) {
+  const el = document.getElementById(id);
+  THICKNESSES.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.v; o.textContent = t.label;
+    if (t.v === def) o.selected = true;
+    el.appendChild(o);
+  });
+}
+fillSelect('tCarcass', 0.75);
+fillSelect('tBack', 0.25);
+fillSelect('tShelf', 0.75);
+fillSelect('tDrawerBox', 0.5);
+fillSelect('tDrawerBottom', 0.25);
+
+const SQIN_PER_SQFT = 144;
+const num = id => parseFloat(document.getElementById(id).value) || 0;
+const label = v => (THICKNESSES.find(t => t.v === v) || {}).label || (v + '"');
+const fmt = n => (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+function calc() {
+  const W = num('width'), H = num('height'), D = num('depth');
+  const doors = Math.max(0, Math.floor(num('doors')));
+  const drawers = Math.max(0, Math.floor(num('drawers')));
+  const shelves = Math.max(0, Math.floor(num('shelves')));
+  const qty = Math.max(1, Math.floor(num('qty')));
+
+  const tCar = parseFloat(document.getElementById('tCarcass').value);
+  const tBack = parseFloat(document.getElementById('tBack').value);
+  const tShelf = parseFloat(document.getElementById('tShelf').value);
+  const tBox = parseFloat(document.getElementById('tDrawerBox').value);
+  const tBottom = parseFloat(document.getElementById('tDrawerBottom').value);
+
+  const boxH = num('drawerBoxH');
+  const faceH = num('drawerFaceH');
+  const clr = num('clearance');
+  const sheetArea = (num('sheetW') * num('sheetH')) / SQIN_PER_SQFT;
+
+  // interior width between the two carcass sides
+  const innerW = Math.max(0, W - 2 * tCar);
+  // drawer box internal width (with clearance on each side)
+  const boxW = Math.max(0, innerW - 2 * clr);
+  const boxD = Math.max(0, D - 1); // drawer box slightly shallower than cabinet
+
+  // height of the door region = opening height minus total drawer-face stack
+  const drawerStack = drawers * faceH;
+  const doorH = Math.max(0, H - (drawers > 0 ? drawerStack : 0));
+
+  const parts = [];
+  const add = (name, qty, w, h, thick) => {
+    if (qty <= 0 || w <= 0 || h <= 0) return;
+    const area = (qty * w * h) / SQIN_PER_SQFT;
+    parts.push({ name, qty, w, h, thick, area });
+  };
+
+  // Carcass
+  add('Sides', 2, D, H, tCar);
+  add('Top & Bottom', 2, innerW, D, tCar);
+  // Back
+  add('Back', 1, W, H, tBack);
+  // Shelves (span between sides)
+  add('Shelves', shelves, innerW, Math.max(0, D - 1), tShelf);
+  // Doors (fill area above drawers; split across door count for sizing display)
+  if (doors > 0 && doorH > 0) {
+    add('Door fronts', doors, W / doors, doorH, tCar);
+  }
+  // Drawers
+  if (drawers > 0) {
+    add('Drawer faces', drawers, W, faceH, tCar);
+    add('Drawer box sides', drawers * 2, boxD, boxH, tBox);
+    add('Drawer box front/back', drawers * 2, boxW, boxH, tBox);
+    add('Drawer bottoms', drawers, boxW, boxD, tBottom);
+  }
+
+  // Group by thickness
+  const byThick = {};
+  parts.forEach(p => { byThick[p.thick] = (byThick[p.thick] || 0) + p.area; });
+
+  return { parts, byThick, qty, sheetArea };
+}
+
+function render() {
+  const { parts, byThick, qty, sheetArea } = calc();
+
+  // breakdown table
+  const bb = document.getElementById('breakdownBody');
+  bb.innerHTML = '';
+  let perCab = 0;
+  parts.forEach(p => {
+    perCab += p.area;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.name}</td>
+      <td class="num">${p.qty}</td>
+      <td>${fmt(p.w)} × ${fmt(p.h)}</td>
+      <td>${label(p.thick)}</td>
+      <td class="num">${fmt(p.area)}</td>`;
+    bb.appendChild(tr);
+  });
+
+  // thickness table
+  const tb = document.getElementById('thicknessBody');
+  tb.innerHTML = '';
+  let grand = 0, grandSheets = 0;
+  Object.keys(byThick)
+    .map(Number).sort((a, b) => a - b)
+    .forEach(t => {
+      const per = byThick[t];
+      const tot = per * qty;
+      const sheets = sheetArea > 0 ? Math.ceil(tot / sheetArea) : 0;
+      grand += tot; grandSheets += sheets;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><span class="pill">${label(t)}</span></td>
+        <td class="num">${fmt(per)}</td>
+        <td class="num">${fmt(tot)}</td>
+        <td class="num">${sheets}</td>`;
+      tb.appendChild(tr);
+    });
+  // totals row
+  const tr = document.createElement('tr');
+  tr.className = 'grp';
+  tr.innerHTML = `<td>Total</td>
+    <td class="num">${fmt(perCab)}</td>
+    <td class="num">${fmt(grand)}</td>
+    <td class="num">${grandSheets}</td>`;
+  tb.appendChild(tr);
+
+  document.getElementById('grandTotal').textContent = fmt(grand) + ' ft²';
+  document.getElementById('grandSub').textContent =
+    `${fmt(perCab)} ft² per cabinet × ${qty} = ${fmt(grand)} ft² · ~${grandSheets} sheet${grandSheets === 1 ? '' : 's'}`;
+  document.getElementById('qtyLabel').textContent = `(× ${qty} cabinet${qty === 1 ? '' : 's'})`;
+  document.getElementById('sheetNote').textContent =
+    `Sheet count assumes ${fmt(num('sheetW'))}" × ${fmt(num('sheetH'))}" sheets (${fmt(sheetArea)} ft² each) and is rounded up per thickness — it does not account for cut layout / waste.`;
+}
+
+document.querySelectorAll('input, select').forEach(el => {
+  el.addEventListener('input', render);
+});
+render();
+</script>
+</body>
+</html>
