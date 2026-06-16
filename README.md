@@ -37,5 +37,6 @@ editable under **Advanced construction assumptions**:
 | Drawer box sides / front / back | derived from depth, width, and box height |
 | Drawer bottoms | inner width × box depth |
 
-The sheet-count estimate rounds up per thickness using the configured sheet size
-(default 48" × 96") and does not account for cut layout or waste.
+The sheet-count estimate rounds up per thickness using the selected sheet size
+— 4' × 8' (default), 5' × 10', or 5' × 12' — and does not account for cut
+layout or waste.
