@@ -65,6 +65,23 @@ direction. Parts then can't be rotated to nest tightly, so the sheet-count
 estimate adds a layout waste allowance (default 15%, editable under Advanced).
 The allowance applies only to the **Plywood (Fronts)** sheets; part square
 footage is unchanged — only the number of front sheets to buy increases.
+
+## Plastic laminate
+
+Check **Calculate plastic laminate** to estimate laminate sheets for the
+finished/exposed surfaces. Laminate is ordered as its own sheets (with its own
+sheet-size selector), separate from the plywood sheet goods. Surfaces accounted
+for (each toggleable):
+
+| Surface | How it's sized |
+|---------|----------------|
+| Finished ends (0–2) | Height × Depth per exposed end |
+| Door & drawer fronts | the door + drawer face area |
+| Cabinet front edges | front-edge perimeter (2×Height + 2×Width) × 3/4" |
+| Wall cabinet bottom | Width × Depth |
+
+The laminate total (area and estimated sheets) appears in the live results, the
+saved-cabinet report, and both the CSV and PDF exports.
 | Drawer faces | Width × drawer face height (default 6") |
 | Drawer box sides / front / back | box height is always 2" shorter than the face |
 | Drawer bottoms | inner width × box depth |

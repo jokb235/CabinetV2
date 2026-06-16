@@ -202,6 +202,49 @@
       </div>
     </div>
 
+    <h2 style="margin-top:8px;">Plastic Laminate</h2>
+    <div class="field" style="margin-top:-4px;">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input id="lamEnabled" type="checkbox" style="width:auto;">
+        Calculate plastic laminate
+        <span class="hint" style="font-weight:400;">— laminated surfaces, ordered as its own sheets</span>
+      </label>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Finished ends <span class="hint">(exposed sides, 0–2)</span></label>
+        <input id="lamFinEnds" type="number" min="0" max="2" step="1" value="0">
+      </div>
+      <div class="field">
+        <label>Laminate sheet size</label>
+        <select id="lamSheet">
+          <option value="48x96" selected>4' × 8' (48" × 96")</option>
+          <option value="48x120">4' × 10' (48" × 120")</option>
+          <option value="60x144">5' × 12' (60" × 144")</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+          <input id="lamFronts" type="checkbox" style="width:auto;" checked>
+          Door &amp; drawer fronts
+        </label>
+      </div>
+      <div class="field">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+          <input id="lamFrontEdges" type="checkbox" style="width:auto;" checked>
+          Cabinet front edges
+        </label>
+      </div>
+      <div class="field">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+          <input id="lamBottom" type="checkbox" style="width:auto;">
+          Wall cabinet bottom
+        </label>
+      </div>
+    </div>
+
     <details>
       <summary>Advanced construction assumptions</summary>
       <div class="row2" style="margin-top:12px;">
@@ -269,6 +312,11 @@
     <div id="lumberBox" class="total-box" style="display:none; background:#f0fdf4; border-color:#bbf7d0; margin-top:16px;">
       <div class="big" id="lumberTotal" style="color:var(--good);"></div>
       <div class="sub" id="lumberSub"></div>
+    </div>
+
+    <div id="laminateBox" class="total-box" style="display:none; background:#fff7ed; border-color:#fed7aa; margin-top:16px;">
+      <div class="big" id="laminateTotal" style="color:#c2410c;"></div>
+      <div class="sub" id="laminateSub"></div>
     </div>
 
     <details style="margin-top:16px;">
@@ -376,6 +424,12 @@ function readForm() {
     grainWaste: num('grainWaste'),
     sheetSize: document.getElementById('sheetSize').value,
     toeKick: document.getElementById('toeKick').value,
+    lamEnabled: document.getElementById('lamEnabled').checked,
+    lamFinEnds: num('lamFinEnds'),
+    lamFronts: document.getElementById('lamFronts').checked,
+    lamFrontEdges: document.getElementById('lamFrontEdges').checked,
+    lamBottom: document.getElementById('lamBottom').checked,
+    lamSheet: document.getElementById('lamSheet').value,
   };
 }
 
@@ -393,6 +447,12 @@ function applyState(s) {
   document.getElementById('toeKick').value = s.toeKick;
   document.getElementById('drawerBank').checked = !!s.drawerBank;
   document.getElementById('grainMatch').checked = !!s.grainMatch;
+  document.getElementById('lamEnabled').checked = !!s.lamEnabled;
+  document.getElementById('lamFinEnds').value = s.lamFinEnds || 0;
+  document.getElementById('lamFronts').checked = !!s.lamFronts;
+  document.getElementById('lamFrontEdges').checked = !!s.lamFrontEdges;
+  document.getElementById('lamBottom').checked = !!s.lamBottom;
+  document.getElementById('lamSheet').value = s.lamSheet || '48x96';
 }
 
 // ---- calculation (pure: works from a state object) ---------------------
@@ -474,11 +534,31 @@ function calc(s) {
     byGroup[key].area += p.area;
   });
 
-  return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor };
+  // Plastic laminate — applied to selected exposed surfaces. Ordered as its
+  // own sheets (its own sheet size), so tracked separately from sheet goods.
+  const laminateParts = [];
+  let laminateArea = 0;
+  const [lamW, lamH] = (s.lamSheet || '48x96').split('x').map(Number);
+  const laminateSheetArea = (lamW * lamH) / SQIN_PER_SQFT;
+  if (s.lamEnabled) {
+    const addLam = (name, a) => { if (a > 0) { laminateParts.push({ name, area: a }); laminateArea += a; } };
+    const finEnds = Math.max(0, Math.min(2, Math.floor(s.lamFinEnds || 0)));
+    addLam('Finished ends', finEnds * H * D / SQIN_PER_SQFT);
+    if (s.lamFronts) {
+      const frontArea = parts.filter(p => p.material === FRONT_MAT).reduce((t, p) => t + p.area, 0);
+      addLam('Door & drawer fronts', frontArea);
+    }
+    if (s.lamFrontEdges) addLam('Cabinet front edges', (2 * H + 2 * W) * tCar / SQIN_PER_SQFT);
+    if (s.lamBottom) addLam('Wall cabinet bottom', W * D / SQIN_PER_SQFT);
+  }
+
+  return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor,
+    laminateParts, laminateArea, laminateSheetArea, lamW, lamH };
 }
 
 function render() {
-  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor } = calc(readForm());
+  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor,
+    laminateParts, laminateArea, laminateSheetArea, lamW, lamH } = calc(readForm());
 
   // breakdown table
   const bb = document.getElementById('breakdownBody');
@@ -545,6 +625,21 @@ function render() {
   } else {
     lumberBox.style.display = 'none';
   }
+
+  // plastic laminate (only when enabled and at least one surface selected)
+  const laminateBox = document.getElementById('laminateBox');
+  if (laminateArea > 0) {
+    const totLam = laminateArea * qty;
+    const lamSheets = laminateSheetArea > 0 ? Math.ceil(totLam / laminateSheetArea) : 0;
+    laminateBox.style.display = '';
+    document.getElementById('laminateTotal').textContent =
+      `${fmt(totLam)} ft² · ${lamSheets} laminate sheet${lamSheets === 1 ? '' : 's'}`;
+    const surfaces = laminateParts.map(p => `${p.name} ${fmt(p.area)} ft²`).join(' · ');
+    document.getElementById('laminateSub').textContent =
+      `${surfaces} — ${fmt(laminateArea)} ft²/cabinet × ${qty}, on ${fmt(lamW)}"×${fmt(lamH)}" sheets`;
+  } else {
+    laminateBox.style.display = 'none';
+  }
 }
 
 // ---- saved-cabinet report ----------------------------------------------
@@ -575,7 +670,9 @@ function summarize(s, agg) {
       agg[key].area += a; agg[key].sheets += sh;
     }
   });
-  return { area, sheets, lumberLF: r.lumberLF * s.qty };
+  const laminateArea = r.laminateArea * s.qty;
+  const laminateSheets = r.laminateSheetArea > 0 ? Math.ceil(laminateArea / r.laminateSheetArea) : 0;
+  return { area, sheets, lumberLF: r.lumberLF * s.qty, laminateArea, laminateSheets };
 }
 
 function setEditing(on) {
@@ -633,10 +730,11 @@ function renderReport() {
   }
 
   const agg = {};
-  let totLumber = 0;
+  let totLumber = 0, totLamArea = 0, totLamSheets = 0;
   savedCabinets.forEach((s, i) => {
     const sum = summarize(s, agg);
     totLumber += sum.lumberLF;
+    totLamArea += sum.laminateArea; totLamSheets += sum.laminateSheets;
     const div = document.createElement('div');
     div.className = 'saved-item' + (i === editIndex ? ' editing' : '');
     div.innerHTML = `
@@ -644,6 +742,7 @@ function renderReport() {
         <div class="name">${escapeHtml(s.name)}</div>
         <div class="meta">${fmt(s.width)}×${fmt(s.height)}×${fmt(s.depth)}" · qty ${s.qty} · ${fmt(sum.area)} ft² sheet goods` +
         (sum.lumberLF > 0 ? ` · ${fmt(sum.lumberLF)} lf 2x4` : '') +
+        (sum.laminateArea > 0 ? ` · ${fmt(sum.laminateArea)} ft² laminate` : '') +
         ` · ~${sum.sheets} sheet${sum.sheets === 1 ? '' : 's'}</div>
       </div>
       <div class="saved-actions">
@@ -679,6 +778,7 @@ function renderReport() {
   document.getElementById('reportNote').textContent =
     `Across ${savedCabinets.length} cabinet type${savedCabinets.length === 1 ? '' : 's'}.` +
     (totLumber > 0 ? ` Toe-kick lumber: ${fmt(totLumber)} linear ft (≈ ${Math.ceil(totLumber / 8)} eight-foot 2x4s).` : '') +
+    (totLamArea > 0 ? ` Plastic laminate: ${fmt(totLamArea)} ft² (≈ ${totLamSheets} sheet${totLamSheets === 1 ? '' : 's'}).` : '') +
     ` Sheet counts are summed per cabinet type using each type's own sheet size and waste setting.`;
 }
 
@@ -700,17 +800,19 @@ function download(filename, text, type) {
 // Shared report data used by both CSV and PDF exports.
 function buildReportData() {
   const agg = {};
-  let totLumber = 0;
+  let totLumber = 0, totLamArea = 0, totLamSheets = 0;
   const cabinets = savedCabinets.map(s => {
     const sum = summarize(s, agg);
     totLumber += sum.lumberLF;
+    totLamArea += sum.laminateArea; totLamSheets += sum.laminateSheets;
     return { s, sum };
   });
   const groups = Object.values(agg)
     .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick);
   const gArea = groups.reduce((t, g) => t + g.area, 0);
   const gSheets = groups.reduce((t, g) => t + g.sheets, 0);
-  return { cabinets, groups, gArea, gSheets, totLumber, generated: new Date().toLocaleString() };
+  return { cabinets, groups, gArea, gSheets, totLumber, totLamArea, totLamSheets,
+    generated: new Date().toLocaleString() };
 }
 
 function exportCSV() {
@@ -725,12 +827,14 @@ function exportCSV() {
   rows.push([]);
   rows.push(['Name', 'Width', 'Height', 'Depth', 'Qty', 'Doors', 'Drawers', 'Shelves',
     'Back', 'Shelf', 'Drawer box', 'Drawer bottom', 'Toe kick', 'Drawer bank',
-    'Grain match', 'Sheet size', 'Sheet goods (ft²)', 'Toe-kick lumber (lf)', 'Sheets']);
+    'Grain match', 'Sheet size', 'Sheet goods (ft²)', 'Toe-kick lumber (lf)', 'Sheets',
+    'Laminate (ft²)', 'Laminate sheets']);
   d.cabinets.forEach(({ s, sum }) => {
     rows.push([s.name, s.width, s.height, s.depth, s.qty, s.doors, s.drawers, s.shelves,
       label(s.tBack), label(s.tShelf), label(s.tBox), label(s.tBottom), TOE_LABELS[s.toeKick],
       s.drawerBank ? 'Yes' : 'No', s.grainMatch ? `Yes (${s.grainWaste}%)` : 'No',
-      s.sheetSize.replace('x', '×'), round2(sum.area), round2(sum.lumberLF), sum.sheets]);
+      s.sheetSize.replace('x', '×'), round2(sum.area), round2(sum.lumberLF), sum.sheets,
+      round2(sum.laminateArea), sum.laminateSheets]);
   });
   rows.push([]);
   rows.push(['Project Totals by Material & Thickness']);
@@ -741,6 +845,11 @@ function exportCSV() {
     rows.push([]);
     rows.push(['Toe-kick lumber (linear ft)', round2(d.totLumber)]);
     rows.push(['Eight-foot 2x4s (est.)', Math.ceil(d.totLumber / 8)]);
+  }
+  if (d.totLamArea > 0) {
+    rows.push([]);
+    rows.push(['Plastic laminate (ft²)', round2(d.totLamArea)]);
+    rows.push(['Laminate sheets (est.)', d.totLamSheets]);
   }
   const csv = rows.map(r => r.map(csvCell).join(',')).join('\n');
   download('cabinet-report.csv', csv, 'text/csv');
@@ -914,6 +1023,11 @@ function exportPDF() {
     doc.down(12);
     doc.text(doc.MARGIN, `Toe-kick lumber: ${fmt(d.totLumber)} linear ft ` +
       `(~ ${Math.ceil(d.totLumber / 8)} eight-foot 2x4s)`, 10, 0);
+  }
+  if (d.totLamArea > 0) {
+    doc.down(12);
+    doc.text(doc.MARGIN, `Plastic laminate: ${fmt(d.totLamArea)} ft2 ` +
+      `(~ ${d.totLamSheets} laminate sheet${d.totLamSheets === 1 ? '' : 's'})`, 10, 0);
   }
 
   download('cabinet-report.pdf', doc.build(), 'application/pdf');
