@@ -740,91 +740,177 @@ function exportCSV() {
   download('cabinet-report.csv', csv, 'text/csv');
 }
 
-// PDF export via the browser's print-to-PDF on a formatted report window.
+// ---- minimal self-contained PDF generator (standard base-14 fonts) -----
+// Strip characters outside the printable-ASCII range so the byte length of the
+// content stream matches its string length (needed for valid xref offsets).
+function pdfAscii(s) {
+  return String(s)
+    .replace(/×/g, 'x').replace(/²/g, '2').replace(/≈/g, '~')
+    .replace(/[—–]/g, '-').replace(/·/g, '-')
+    .replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
+    .replace(/[^\x20-\x7E]/g, '');
+}
+
+function pdfDoc() {
+  const PW = 612, PH = 792, MARGIN = 40, BOTTOM = 40;
+  const pages = [];
+  let cur = '';
+  let y = PH - MARGIN;
+  const escTxt = s => pdfAscii(s).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+  return {
+    PW, MARGIN,
+    get y() { return y; },
+    set y(v) { y = v; },
+    addPage() { if (cur) pages.push(cur); cur = ''; y = PH - MARGIN; },
+    needsPage(space) { return y - space < BOTTOM; },
+    down(d) { y -= d; },
+    // bold: 0 = Helvetica (F1), 1 = Helvetica-Bold (F2)
+    text(x, str, size, bold) {
+      cur += `BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${x} ${y.toFixed(2)} Tm (${escTxt(str)}) Tj ET\n`;
+    },
+    // right-aligned in Courier (F3, fixed 0.6em width) so alignment is exact
+    textRight(xRight, str, size) {
+      const t = pdfAscii(str);
+      const w = t.length * size * 0.6;
+      cur += `BT /F3 ${size} Tf 1 0 0 1 ${(xRight - w).toFixed(2)} ${y.toFixed(2)} Tm (${escTxt(str)}) Tj ET\n`;
+    },
+    hline(x1, x2) {
+      cur += `${x1} ${y.toFixed(2)} m ${x2} ${y.toFixed(2)} l S\n`;
+    },
+    build() {
+      if (cur) { pages.push(cur); cur = ''; }
+      return assemblePDF(pages);
+    },
+  };
+}
+
+function assemblePDF(pageContents) {
+  const n = pageContents.length || 1;
+  if (pageContents.length === 0) pageContents = [''];
+  const O = {};
+  O[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  O[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+  O[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
+  O[5] = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>';
+  const pageNums = [], contentNums = [];
+  let next = 6;
+  for (let i = 0; i < n; i++) { pageNums.push(next++); contentNums.push(next++); }
+  O[2] = `<< /Type /Pages /Kids [${pageNums.map(p => p + ' 0 R').join(' ')}] /Count ${n} >>`;
+  for (let i = 0; i < n; i++) {
+    const stream = pageContents[i];
+    O[pageNums[i]] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ` +
+      `/Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${contentNums[i]} 0 R >>`;
+    O[contentNums[i]] = `<< /Length ${stream.length} >>\nstream\n${stream}endstream`;
+  }
+  const total = next - 1;
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+  for (let i = 1; i <= total; i++) {
+    offsets[i] = pdf.length;
+    pdf += `${i} 0 obj\n${O[i]}\nendobj\n`;
+  }
+  const xrefPos = pdf.length;
+  pdf += `xref\n0 ${total + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= total; i++) pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  pdf += `trailer\n<< /Size ${total + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+  return pdf;
+}
+
+// Draw a table; cols: [{h, x, align:'l'|'r', w}]. Returns after advancing y.
+function pdfTable(doc, cols, rows, size, totalsRow) {
+  const drawHeader = () => {
+    cols.forEach(c => c.align === 'r' ? doc.textRight(c.x, c.h, size) : doc.text(c.x, c.h, size, 1));
+    doc.down(3);
+    doc.hline(doc.MARGIN, doc.PW - doc.MARGIN);
+    doc.down(size + 4);
+  };
+  drawHeader();
+  rows.forEach(r => {
+    if (doc.needsPage(size + 4)) { doc.addPage(); drawHeader(); }
+    cols.forEach((c, i) => {
+      const v = r[i];
+      if (v === undefined || v === null || v === '') return;
+      if (c.align === 'r') doc.textRight(c.x, v, size);
+      else {
+        const max = c.w ? Math.floor(c.w / (size * 0.5)) : 999;
+        doc.text(c.x, String(v).length > max ? String(v).slice(0, max - 1) + '…' : v, size, 0);
+      }
+    });
+    doc.down(size + 4);
+  });
+  if (totalsRow) {
+    doc.down(1);
+    doc.hline(doc.MARGIN, doc.PW - doc.MARGIN);
+    doc.down(size + 4);
+    cols.forEach((c, i) => {
+      const v = totalsRow[i];
+      if (v === undefined || v === null || v === '') return;
+      if (c.align === 'r') doc.textRight(c.x, v, size);
+      else doc.text(c.x, v, size, 1);
+    });
+    doc.down(size + 4);
+  }
+}
+
+// Direct PDF download (no print dialog).
 function exportPDF() {
   if (savedCabinets.length === 0) {
     alert('No cabinets to export. Save at least one cabinet first.');
     return;
   }
   const d = buildReportData();
-  const e = escapeHtml;
+  const doc = pdfDoc();
 
-  const cabRows = d.cabinets.map(({ s, sum }) => `
-    <tr>
-      <td>${e(s.name)}</td>
-      <td>${fmt(s.width)} × ${fmt(s.height)} × ${fmt(s.depth)}</td>
-      <td class="num">${s.qty}</td>
-      <td class="num">${s.doors}</td>
-      <td class="num">${s.drawers}</td>
-      <td class="num">${s.shelves}</td>
-      <td>${e(TOE_LABELS[s.toeKick])}</td>
-      <td class="num">${fmt(sum.area)}</td>
-      <td class="num">${sum.lumberLF > 0 ? fmt(sum.lumberLF) : '—'}</td>
-      <td class="num">${sum.sheets}</td>
-    </tr>`).join('');
+  doc.text(doc.MARGIN, 'Cabinet Sheet Goods Report', 16, 1);
+  doc.down(16);
+  doc.text(doc.MARGIN, 'Generated ' + d.generated, 9, 0);
+  doc.down(22);
 
-  const totalRows = d.groups.map(g => `
-    <tr>
-      <td>${e(g.material)}</td>
-      <td>${label(g.thick)}</td>
-      <td class="num">${fmt(g.area)}</td>
-      <td class="num">${g.sheets}</td>
-    </tr>`).join('');
+  // Cabinets table
+  doc.text(doc.MARGIN, `Cabinets (${d.cabinets.length})`, 12, 1);
+  doc.down(15);
+  const cabCols = [
+    { h: 'Name', x: 40, align: 'l', w: 108 },
+    { h: 'W x H x D (in)', x: 152, align: 'l', w: 98 },
+    { h: 'Toe kick', x: 255, align: 'l', w: 120 },
+    { h: 'Qty', x: 415, align: 'r' },
+    { h: 'Sheet ft2', x: 478, align: 'r' },
+    { h: 'Lumber lf', x: 528, align: 'r' },
+    { h: 'Sheets', x: 572, align: 'r' },
+  ];
+  const cabRows = d.cabinets.map(({ s, sum }) => [
+    s.name,
+    `${fmt(s.width)} x ${fmt(s.height)} x ${fmt(s.depth)}`,
+    TOE_LABELS[s.toeKick],
+    String(s.qty),
+    fmt(sum.area),
+    sum.lumberLF > 0 ? fmt(sum.lumberLF) : '-',
+    String(sum.sheets),
+  ]);
+  pdfTable(doc, cabCols, cabRows, 8);
 
-  const lumberBlock = d.totLumber > 0
-    ? `<p class="lumber"><strong>Toe-kick lumber:</strong> ${fmt(d.totLumber)} linear ft
-       (≈ ${Math.ceil(d.totLumber / 8)} eight-foot 2x4s)</p>`
-    : '';
+  doc.down(16);
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Cabinet Sheet Goods Report</title>
-    <style>
-      body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-             color:#1f2933; margin:32px; }
-      h1 { font-size:20px; margin:0 0 2px; }
-      h2 { font-size:14px; margin:24px 0 8px; }
-      .gen { color:#6b7280; font-size:12px; margin:0 0 8px; }
-      table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:8px; }
-      th, td { border:1px solid #d1d5db; padding:6px 8px; text-align:left; }
-      th { background:#f1f5f9; }
-      td.num, th.num { text-align:right; }
-      tfoot td, tr.total td { font-weight:700; background:#f8fafc; }
-      .lumber { font-size:13px; }
-      @media print { body { margin:0; } }
-    </style></head><body>
-    <h1>Cabinet Sheet Goods Report</h1>
-    <p class="gen">Generated ${e(d.generated)}</p>
+  // Project totals table
+  doc.text(doc.MARGIN, 'Project Totals by Material & Thickness', 12, 1);
+  doc.down(15);
+  const totCols = [
+    { h: 'Material', x: 40, align: 'l', w: 150 },
+    { h: 'Thickness', x: 200, align: 'l', w: 120 },
+    { h: 'Total ft2', x: 380, align: 'r' },
+    { h: 'Sheets', x: 470, align: 'r' },
+  ];
+  const totRows = d.groups.map(g => [g.material, label(g.thick), fmt(g.area), String(g.sheets)]);
+  pdfTable(doc, totCols, totRows, 9, ['Total', '', fmt(d.gArea), String(d.gSheets)]);
 
-    <h2>Cabinets (${d.cabinets.length})</h2>
-    <table>
-      <thead><tr>
-        <th>Name</th><th>W × H × D (in)</th><th class="num">Qty</th>
-        <th class="num">Doors</th><th class="num">Drawers</th><th class="num">Shelves</th>
-        <th>Toe kick</th><th class="num">Sheet goods (ft²)</th>
-        <th class="num">Lumber (lf)</th><th class="num">Sheets</th>
-      </tr></thead>
-      <tbody>${cabRows}</tbody>
-    </table>
-
-    <h2>Project Totals by Material &amp; Thickness</h2>
-    <table>
-      <thead><tr><th>Material</th><th>Thickness</th><th class="num">Total (ft²)</th><th class="num">Sheets</th></tr></thead>
-      <tbody>${totalRows}</tbody>
-      <tfoot><tr class="total"><td colspan="2">Total</td><td class="num">${fmt(d.gArea)}</td><td class="num">${d.gSheets}</td></tr></tfoot>
-    </table>
-    ${lumberBlock}
-
-    <script>window.onload = function(){ window.print(); };<\/script>
-    </body></html>`;
-
-  const w = window.open('', '_blank');
-  if (!w) {
-    alert('Please allow pop-ups for this site to export a PDF.');
-    return;
+  if (d.totLumber > 0) {
+    doc.down(12);
+    doc.text(doc.MARGIN, `Toe-kick lumber: ${fmt(d.totLumber)} linear ft ` +
+      `(~ ${Math.ceil(d.totLumber / 8)} eight-foot 2x4s)`, 10, 0);
   }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+
+  download('cabinet-report.pdf', doc.build(), 'application/pdf');
 }
 
 // ---- wire up -----------------------------------------------------------
