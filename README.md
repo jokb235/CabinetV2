@@ -56,10 +56,15 @@ editable under **Advanced construction assumptions**:
 Check **Drawer Bank** when the cabinet front is an even stack of drawers (no
 doors): the drawer faces are then divided evenly across the full cabinet height.
 
+Door and drawer fronts are tracked as their own material, **Plywood (Fronts)**,
+separate from the rest of the carcass sheets — so the grain-matched faces can be
+ordered separately.
+
 Check **Grain Match** when all faces must keep the grain running the same
 direction. Parts then can't be rotated to nest tightly, so the sheet-count
 estimate adds a layout waste allowance (default 15%, editable under Advanced).
-Part square footage is unchanged — only the number of sheets to buy increases.
+The allowance applies only to the **Plywood (Fronts)** sheets; part square
+footage is unchanged — only the number of front sheets to buy increases.
 | Drawer faces | Width × drawer face height (default 6") |
 | Drawer box sides / front / back | box height is always 2" shorter than the face |
 | Drawer bottoms | inner width × box depth |

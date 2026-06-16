@@ -345,9 +345,15 @@ fillSelect('tDrawerBox', 0.5);
 fillSelect('tDrawerBottom', 0.25);
 
 const SQIN_PER_SQFT = 144;
+// Door & drawer fronts are tracked as their own material so they can be ordered
+// separately (they're grain-matched). Grain-match waste applies only to these.
+const FRONT_MAT = 'Plywood (Fronts)';
 const num = id => parseFloat(document.getElementById(id).value) || 0;
 const label = v => (THICKNESSES.find(t => t.v === v) || {}).label || (v + '"');
 const fmt = n => (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+// Sheets for one material group; grain-match waste applies only to front material.
+const sheetsFor = (area, sheetArea, material, wasteFactor) =>
+  sheetArea > 0 ? Math.ceil((area * (material === FRONT_MAT ? wasteFactor : 1)) / sheetArea) : 0;
 
 // ---- form state helpers ------------------------------------------------
 function readForm() {
@@ -437,11 +443,11 @@ function calc(s) {
   add('Shelves', shelves, innerW, Math.max(0, D - 1), tShelf);
   // Doors (fill area above drawers; split across door count for sizing display)
   if (doors > 0 && doorH > 0) {
-    add('Door fronts', doors, W / doors, doorH, tCar);
+    add('Door fronts', doors, W / doors, doorH, tCar, FRONT_MAT);
   }
   // Drawers
   if (drawers > 0) {
-    add('Drawer faces', drawers, W, faceH, tCar);
+    add('Drawer faces', drawers, W, faceH, tCar, FRONT_MAT);
     add('Drawer box sides', drawers * 2, boxD, boxH, tBox);
     add('Drawer box front/back', drawers * 2, boxW, boxH, tBox);
     add('Drawer bottoms', drawers, boxW, boxD, tBottom);
@@ -498,7 +504,7 @@ function render() {
     .forEach(g => {
       const per = g.area;
       const tot = per * qty;
-      const sheets = sheetArea > 0 ? Math.ceil((tot * wasteFactor) / sheetArea) : 0;
+      const sheets = sheetsFor(tot, sheetArea, g.material, wasteFactor);
       grand += tot; grandSheets += sheets;
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${g.material}</td>
@@ -524,7 +530,7 @@ function render() {
   document.getElementById('sheetNote').textContent =
     `Sheet count assumes ${fmt(sheetW)}" × ${fmt(sheetH)}" sheets (${fmt(sheetArea)} ft² each), rounded up per material/thickness` +
     (grainMatch
-      ? ` and includes a ${fmt((wasteFactor - 1) * 100)}% grain-match layout waste allowance.`
+      ? ` and includes a ${fmt((wasteFactor - 1) * 100)}% grain-match layout waste allowance on the door/drawer front sheets only.`
       : ` — it does not account for cut layout / waste.`);
 
   // toe-kick lumber (only when 2x4 treated lumber is selected)
@@ -561,7 +567,7 @@ function summarize(s, agg) {
   let area = 0, sheets = 0;
   Object.values(r.byGroup).forEach(g => {
     const a = g.area * s.qty;
-    const sh = r.sheetArea > 0 ? Math.ceil((a * r.wasteFactor) / r.sheetArea) : 0;
+    const sh = sheetsFor(a, r.sheetArea, g.material, r.wasteFactor);
     area += a; sheets += sh;
     if (agg) {
       const key = g.material + '|' + g.thick;
