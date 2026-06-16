@@ -133,6 +133,14 @@
       </label>
     </div>
 
+    <div class="field" style="margin-top:-4px;">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input id="grainMatch" type="checkbox" style="width:auto;">
+        Grain Match
+        <span class="hint" style="font-weight:400;">— adds layout waste since parts can't be rotated to nest</span>
+      </label>
+    </div>
+
     <h2 style="margin-top:8px;">Material Thickness</h2>
     <p class="note" style="margin-top:0;">Cabinet carcass &amp; door/drawer fronts are fixed at 3/4" material.</p>
     <div class="row2">
@@ -180,6 +188,10 @@
         <div class="field">
           <label>Toe kick height <span class="hint">(in)</span></label>
           <input id="toeKickH" type="number" min="0" step="0.25" value="4">
+        </div>
+        <div class="field">
+          <label>Grain match waste <span class="hint">(% — only when Grain Match is on)</span></label>
+          <input id="grainWaste" type="number" min="0" step="1" value="15">
         </div>
         <div class="field">
           <label>Sheet size <span class="hint">(for sheet count)</span></label>
@@ -296,6 +308,11 @@ function calc() {
   const [sheetW, sheetH] = document.getElementById('sheetSize').value.split('x').map(Number);
   const sheetArea = (sheetW * sheetH) / SQIN_PER_SQFT;
 
+  // Grain matching forces parts to be cut with the grain in one direction,
+  // so they can't be rotated to nest tightly — apply a layout waste factor.
+  const grainMatch = document.getElementById('grainMatch').checked;
+  const wasteFactor = grainMatch ? 1 + Math.max(0, num('grainWaste')) / 100 : 1;
+
   // interior width between the two carcass sides
   const innerW = Math.max(0, W - 2 * tCar);
   // drawer box internal width (with clearance on each side)
@@ -353,11 +370,11 @@ function calc() {
     byGroup[key].area += p.area;
   });
 
-  return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF };
+  return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor };
 }
 
 function render() {
-  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF } = calc();
+  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor } = calc();
 
   // breakdown table
   const bb = document.getElementById('breakdownBody');
@@ -383,7 +400,7 @@ function render() {
     .forEach(g => {
       const per = g.area;
       const tot = per * qty;
-      const sheets = sheetArea > 0 ? Math.ceil(tot / sheetArea) : 0;
+      const sheets = sheetArea > 0 ? Math.ceil((tot * wasteFactor) / sheetArea) : 0;
       grand += tot; grandSheets += sheets;
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${g.material}</td>
@@ -407,7 +424,10 @@ function render() {
     `${fmt(perCab)} ft² per cabinet × ${qty} = ${fmt(grand)} ft² · ~${grandSheets} sheet${grandSheets === 1 ? '' : 's'}`;
   document.getElementById('qtyLabel').textContent = `(× ${qty} cabinet${qty === 1 ? '' : 's'})`;
   document.getElementById('sheetNote').textContent =
-    `Sheet count assumes ${fmt(sheetW)}" × ${fmt(sheetH)}" sheets (${fmt(sheetArea)} ft² each) and is rounded up per material/thickness — it does not account for cut layout / waste.`;
+    `Sheet count assumes ${fmt(sheetW)}" × ${fmt(sheetH)}" sheets (${fmt(sheetArea)} ft² each), rounded up per material/thickness` +
+    (grainMatch
+      ? ` and includes a ${fmt((wasteFactor - 1) * 100)}% grain-match layout waste allowance.`
+      : ` — it does not account for cut layout / waste.`);
 
   // toe-kick lumber (only when 2x4 treated lumber is selected)
   const lumberBox = document.getElementById('lumberBox');
