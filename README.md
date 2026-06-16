@@ -18,6 +18,18 @@ Open `index.html` in any web browser — no build step or server required.
    eight-foot boards.
 5. Enter a **quantity** to multiply the totals across multiple identical cabinets.
 
+## Building a report
+
+1. Give the cabinet a **name** and click **Save to Report**. It's added to the
+   Report section at the bottom (and saved in your browser so it survives a reload).
+2. Each saved cabinet shows its dimensions, quantity, sheet-goods total, and an
+   **Edit** button (loads it back into the form to change and update) plus a
+   **Delete** button.
+3. The **Project Totals** table aggregates every saved cabinet by material and
+   thickness, with the total sheet count and any toe-kick lumber.
+4. Click **Export Report** to download a CSV containing every cabinet and the
+   project totals.
+
 Results update live and show:
 
 - Grand total square footage of sheet goods.

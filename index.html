@@ -87,6 +87,29 @@
   }
   caption { text-align: left; font-weight: 700; margin-bottom: 8px; }
   .muted { color: var(--muted); }
+
+  button {
+    font: inherit; cursor: pointer; border: none; border-radius: 6px;
+    padding: 10px 16px; font-weight: 600;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-ghost { background: #f1f5f9; color: var(--ink); padding: 6px 12px; font-size: 0.82rem; }
+  .btn-ghost:hover { background: #e2e8f0; }
+  .btn-danger { background: #fee2e2; color: #b91c1c; padding: 6px 12px; font-size: 0.82rem; }
+  .btn-danger:hover { background: #fecaca; }
+  .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+
+  .full { grid-column: 1 / -1; }
+  .saved-item {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px;
+  }
+  .saved-item.editing { border-color: var(--accent); background: var(--accent-soft); }
+  .saved-item .meta { font-size: 0.82rem; color: var(--muted); }
+  .saved-item .name { font-weight: 700; font-size: 0.95rem; }
+  .saved-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
 </style>
 </head>
 <body>
@@ -99,6 +122,11 @@
   <!-- INPUTS -->
   <section class="card">
     <h2>Cabinet Inputs</h2>
+
+    <div class="field">
+      <label>Cabinet name</label>
+      <input id="cabName" type="text" placeholder='e.g. Base Cabinet 30"'>
+    </div>
 
     <div class="field">
       <label>Overall dimensions <span class="hint">(inches)</span></label>
@@ -208,6 +236,12 @@
         fill the area above any drawer stack. Adjust the values above to match your construction style.
       </p>
     </details>
+
+    <div class="btn-row">
+      <button id="saveBtn" class="btn-primary">Save to Report</button>
+      <button id="cancelEditBtn" class="btn-ghost" style="display:none;">Cancel edit</button>
+      <span class="muted" id="editHint"></span>
+    </div>
   </section>
 
   <!-- RESULTS -->
@@ -254,6 +288,32 @@
     </details>
     <p class="note" id="sheetNote"></p>
   </section>
+
+  <!-- REPORT -->
+  <section class="card full">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <h2 style="margin:0;">Report — Saved Cabinets</h2>
+      <button id="exportBtn" class="btn-primary">Export Report</button>
+    </div>
+
+    <div id="savedList" style="margin-top:16px;"></div>
+
+    <div id="reportTotals" style="display:none;">
+      <h2 style="margin-top:8px;">Project Totals</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th>Thickness</th>
+            <th class="num">Total (ft²)</th>
+            <th class="num">Sheets</th>
+          </tr>
+        </thead>
+        <tbody id="reportBody"></tbody>
+      </table>
+      <p class="note" id="reportNote"></p>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -286,32 +346,67 @@ const num = id => parseFloat(document.getElementById(id).value) || 0;
 const label = v => (THICKNESSES.find(t => t.v === v) || {}).label || (v + '"');
 const fmt = n => (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-function calc() {
-  const W = num('width'), H = num('height'), D = num('depth');
-  const doors = Math.max(0, Math.floor(num('doors')));
-  const drawers = Math.max(0, Math.floor(num('drawers')));
-  const shelves = Math.max(0, Math.floor(num('shelves')));
-  const qty = Math.max(1, Math.floor(num('qty')));
+// ---- form state helpers ------------------------------------------------
+function readForm() {
+  return {
+    name: document.getElementById('cabName').value.trim(),
+    width: num('width'), height: num('height'), depth: num('depth'),
+    doors: Math.max(0, Math.floor(num('doors'))),
+    drawers: Math.max(0, Math.floor(num('drawers'))),
+    shelves: Math.max(0, Math.floor(num('shelves'))),
+    qty: Math.max(1, Math.floor(num('qty'))),
+    tBack: parseFloat(document.getElementById('tBack').value),
+    tShelf: parseFloat(document.getElementById('tShelf').value),
+    tBox: parseFloat(document.getElementById('tDrawerBox').value),
+    tBottom: parseFloat(document.getElementById('tDrawerBottom').value),
+    drawerBank: document.getElementById('drawerBank').checked,
+    grainMatch: document.getElementById('grainMatch').checked,
+    drawerFaceH: num('drawerFaceH'),
+    clearance: num('clearance'),
+    toeKickH: num('toeKickH'),
+    grainWaste: num('grainWaste'),
+    sheetSize: document.getElementById('sheetSize').value,
+    toeKick: document.getElementById('toeKick').value,
+  };
+}
+
+function applyState(s) {
+  document.getElementById('cabName').value = s.name || '';
+  ['width', 'height', 'depth', 'doors', 'drawers', 'shelves', 'qty',
+   'drawerFaceH', 'clearance', 'toeKickH', 'grainWaste'].forEach(k => {
+    if (s[k] !== undefined) document.getElementById(k).value = s[k];
+  });
+  document.getElementById('tBack').value = s.tBack;
+  document.getElementById('tShelf').value = s.tShelf;
+  document.getElementById('tDrawerBox').value = s.tBox;
+  document.getElementById('tDrawerBottom').value = s.tBottom;
+  document.getElementById('sheetSize').value = s.sheetSize;
+  document.getElementById('toeKick').value = s.toeKick;
+  document.getElementById('drawerBank').checked = !!s.drawerBank;
+  document.getElementById('grainMatch').checked = !!s.grainMatch;
+}
+
+// ---- calculation (pure: works from a state object) ---------------------
+function calc(s) {
+  const W = s.width, H = s.height, D = s.depth;
+  const doors = s.doors, drawers = s.drawers, shelves = s.shelves, qty = s.qty;
 
   const tCar = 0.75; // carcass & door/drawer fronts are always 3/4"
-  const tBack = parseFloat(document.getElementById('tBack').value);
-  const tShelf = parseFloat(document.getElementById('tShelf').value);
-  const tBox = parseFloat(document.getElementById('tDrawerBox').value);
-  const tBottom = parseFloat(document.getElementById('tDrawerBottom').value);
+  const tBack = s.tBack, tShelf = s.tShelf, tBox = s.tBox, tBottom = s.tBottom;
 
-  const drawerBank = document.getElementById('drawerBank').checked;
+  const drawerBank = s.drawerBank;
   // In a drawer bank the faces evenly split the full cabinet height (no doors).
   // Otherwise each face uses the configured face height. Box height is always 2" shorter.
-  const faceH = (drawerBank && drawers > 0) ? (H / drawers) : num('drawerFaceH');
+  const faceH = (drawerBank && drawers > 0) ? (H / drawers) : s.drawerFaceH;
   const boxH = Math.max(0, faceH - 2);
-  const clr = num('clearance');
-  const [sheetW, sheetH] = document.getElementById('sheetSize').value.split('x').map(Number);
+  const clr = s.clearance;
+  const [sheetW, sheetH] = s.sheetSize.split('x').map(Number);
   const sheetArea = (sheetW * sheetH) / SQIN_PER_SQFT;
 
   // Grain matching forces parts to be cut with the grain in one direction,
   // so they can't be rotated to nest tightly — apply a layout waste factor.
-  const grainMatch = document.getElementById('grainMatch').checked;
-  const wasteFactor = grainMatch ? 1 + Math.max(0, num('grainWaste')) / 100 : 1;
+  const grainMatch = s.grainMatch;
+  const wasteFactor = grainMatch ? 1 + Math.max(0, s.grainWaste) / 100 : 1;
 
   // interior width between the two carcass sides
   const innerW = Math.max(0, W - 2 * tCar);
@@ -351,8 +446,8 @@ function calc() {
 
   // Toe kick — a base frame of front/back rails plus two end pieces.
   // Plywood/PVC are sheet goods (3/4"); 2x4 lumber is measured in linear feet.
-  const toeKickOpt = document.getElementById('toeKick').value;
-  const toeKickH = num('toeKickH');
+  const toeKickOpt = s.toeKick;
+  const toeKickH = s.toeKickH;
   let lumberLF = 0;
   if (toeKickOpt === 'ply' || toeKickOpt === 'pvc') {
     const mat = toeKickOpt === 'ply' ? 'Plywood' : 'PVC';
@@ -374,7 +469,7 @@ function calc() {
 }
 
 function render() {
-  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor } = calc();
+  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor } = calc(readForm());
 
   // breakdown table
   const bb = document.getElementById('breakdownBody');
@@ -443,10 +538,209 @@ function render() {
   }
 }
 
+// ---- saved-cabinet report ----------------------------------------------
+const round2 = n => Math.round(n * 100) / 100;
+const escapeHtml = str => (str || '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const TOE_LABELS = { ply: '3/4" Plywood', pvc: '3/4" PVC', lumber: '2x4 Treated Lumber' };
+
+let savedCabinets = [];
+let editIndex = null;
+try { savedCabinets = JSON.parse(localStorage.getItem('cabinetReport')) || []; } catch (e) { savedCabinets = []; }
+
+function persist() {
+  try { localStorage.setItem('cabinetReport', JSON.stringify(savedCabinets)); } catch (e) { /* ignore */ }
+}
+
+// Totals for one saved cabinet (× its quantity), aggregating sheets into `agg`.
+function summarize(s, agg) {
+  const r = calc(s);
+  let area = 0, sheets = 0;
+  Object.values(r.byGroup).forEach(g => {
+    const a = g.area * s.qty;
+    const sh = r.sheetArea > 0 ? Math.ceil((a * r.wasteFactor) / r.sheetArea) : 0;
+    area += a; sheets += sh;
+    if (agg) {
+      const key = g.material + '|' + g.thick;
+      if (!agg[key]) agg[key] = { material: g.material, thick: g.thick, area: 0, sheets: 0 };
+      agg[key].area += a; agg[key].sheets += sh;
+    }
+  });
+  return { area, sheets, lumberLF: r.lumberLF * s.qty };
+}
+
+function setEditing(on) {
+  document.getElementById('saveBtn').textContent = on ? 'Update Cabinet' : 'Save to Report';
+  document.getElementById('cancelEditBtn').style.display = on ? '' : 'none';
+  document.getElementById('editHint').textContent = on ? 'Editing a saved cabinet…' : '';
+}
+
+function saveCabinet() {
+  const s = readForm();
+  if (!s.name) {
+    alert('Please enter a cabinet name before saving.');
+    document.getElementById('cabName').focus();
+    return;
+  }
+  if (editIndex !== null) { savedCabinets[editIndex] = s; editIndex = null; setEditing(false); }
+  else { savedCabinets.push(s); }
+  persist();
+  renderReport();
+}
+
+function editCabinet(i) {
+  applyState(savedCabinets[i]);
+  editIndex = i;
+  setEditing(true);
+  render();
+  renderReport();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteCabinet(i) {
+  if (!confirm('Delete "' + savedCabinets[i].name + '" from the report?')) return;
+  savedCabinets.splice(i, 1);
+  if (editIndex === i) { editIndex = null; setEditing(false); }
+  else if (editIndex !== null && i < editIndex) { editIndex--; }
+  persist();
+  renderReport();
+}
+
+function cancelEdit() {
+  editIndex = null;
+  setEditing(false);
+  renderReport();
+}
+
+function renderReport() {
+  const list = document.getElementById('savedList');
+  const totalsBox = document.getElementById('reportTotals');
+  list.innerHTML = '';
+
+  if (savedCabinets.length === 0) {
+    list.innerHTML = '<div class="empty">No cabinets saved yet. Fill in the form and click "Save to Report".</div>';
+    totalsBox.style.display = 'none';
+    return;
+  }
+
+  const agg = {};
+  let totLumber = 0;
+  savedCabinets.forEach((s, i) => {
+    const sum = summarize(s, agg);
+    totLumber += sum.lumberLF;
+    const div = document.createElement('div');
+    div.className = 'saved-item' + (i === editIndex ? ' editing' : '');
+    div.innerHTML = `
+      <div>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="meta">${fmt(s.width)}×${fmt(s.height)}×${fmt(s.depth)}" · qty ${s.qty} · ${fmt(sum.area)} ft² sheet goods` +
+        (sum.lumberLF > 0 ? ` · ${fmt(sum.lumberLF)} lf 2x4` : '') +
+        ` · ~${sum.sheets} sheet${sum.sheets === 1 ? '' : 's'}</div>
+      </div>
+      <div class="saved-actions">
+        <button class="btn-ghost" data-edit="${i}">Edit</button>
+        <button class="btn-danger" data-del="${i}">Delete</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  list.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editCabinet(+b.dataset.edit));
+  list.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteCabinet(+b.dataset.del));
+
+  // project totals table
+  const rb = document.getElementById('reportBody');
+  rb.innerHTML = '';
+  let gArea = 0, gSheets = 0;
+  Object.values(agg)
+    .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick)
+    .forEach(g => {
+      gArea += g.area; gSheets += g.sheets;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${g.material}</td>
+        <td><span class="pill">${label(g.thick)}</span></td>
+        <td class="num">${fmt(g.area)}</td>
+        <td class="num">${g.sheets}</td>`;
+      rb.appendChild(tr);
+    });
+  const tr = document.createElement('tr');
+  tr.className = 'grp';
+  tr.innerHTML = `<td colspan="2">Total</td><td class="num">${fmt(gArea)}</td><td class="num">${gSheets}</td>`;
+  rb.appendChild(tr);
+
+  totalsBox.style.display = '';
+  document.getElementById('reportNote').textContent =
+    `Across ${savedCabinets.length} cabinet type${savedCabinets.length === 1 ? '' : 's'}.` +
+    (totLumber > 0 ? ` Toe-kick lumber: ${fmt(totLumber)} linear ft (≈ ${Math.ceil(totLumber / 8)} eight-foot 2x4s).` : '') +
+    ` Sheet counts are summed per cabinet type using each type's own sheet size and waste setting.`;
+}
+
+// ---- CSV export --------------------------------------------------------
+function csvCell(v) {
+  const s = String(v === undefined || v === null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function download(filename, text, type) {
+  const blob = new Blob([text], { type: type + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportReport() {
+  if (savedCabinets.length === 0) {
+    alert('No cabinets to export. Save at least one cabinet first.');
+    return;
+  }
+  const rows = [];
+  rows.push(['Cabinet Sheet Goods Report']);
+  rows.push(['Generated', new Date().toLocaleString()]);
+  rows.push([]);
+  rows.push(['Name', 'Width', 'Height', 'Depth', 'Qty', 'Doors', 'Drawers', 'Shelves',
+    'Back', 'Shelf', 'Drawer box', 'Drawer bottom', 'Toe kick', 'Drawer bank',
+    'Grain match', 'Sheet size', 'Sheet goods (ft²)', 'Toe-kick lumber (lf)', 'Sheets']);
+
+  const agg = {};
+  let totLumber = 0;
+  savedCabinets.forEach(s => {
+    const sum = summarize(s, agg);
+    totLumber += sum.lumberLF;
+    rows.push([s.name, s.width, s.height, s.depth, s.qty, s.doors, s.drawers, s.shelves,
+      label(s.tBack), label(s.tShelf), label(s.tBox), label(s.tBottom), TOE_LABELS[s.toeKick],
+      s.drawerBank ? 'Yes' : 'No', s.grainMatch ? `Yes (${s.grainWaste}%)` : 'No',
+      s.sheetSize.replace('x', '×'), round2(sum.area), round2(sum.lumberLF), sum.sheets]);
+  });
+
+  rows.push([]);
+  rows.push(['Project Totals by Material & Thickness']);
+  rows.push(['Material', 'Thickness', 'Total (ft²)', 'Sheets']);
+  let gArea = 0, gSheets = 0;
+  Object.values(agg)
+    .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick)
+    .forEach(g => { gArea += g.area; gSheets += g.sheets; rows.push([g.material, label(g.thick), round2(g.area), g.sheets]); });
+  rows.push(['Total', '', round2(gArea), gSheets]);
+
+  if (totLumber > 0) {
+    rows.push([]);
+    rows.push(['Toe-kick lumber (linear ft)', round2(totLumber)]);
+    rows.push(['Eight-foot 2x4s (est.)', Math.ceil(totLumber / 8)]);
+  }
+
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\n');
+  download('cabinet-report.csv', csv, 'text/csv');
+}
+
+// ---- wire up -----------------------------------------------------------
 document.querySelectorAll('input, select').forEach(el => {
   el.addEventListener('input', render);
 });
+document.getElementById('saveBtn').addEventListener('click', saveCabinet);
+document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
+document.getElementById('exportBtn').addEventListener('click', exportReport);
+
 render();
+renderReport();
 </script>
 </body>
 </html>
