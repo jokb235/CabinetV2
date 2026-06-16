@@ -27,8 +27,11 @@ Open `index.html` in any web browser — no build step or server required.
    **Delete** button.
 3. The **Project Totals** table aggregates every saved cabinet by material and
    thickness, with the total sheet count and any toe-kick lumber.
-4. Click **Export Report** to download a CSV containing every cabinet and the
-   project totals.
+4. Export the report:
+   - **Export PDF** opens a formatted report and the browser's print dialog —
+     choose "Save as PDF" (allow pop-ups for this to open).
+   - **Export CSV** downloads a `cabinet-report.csv` for spreadsheets.
+   Both contain every cabinet plus the aggregated project totals.
 
 Results update live and show:
 

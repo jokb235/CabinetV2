@@ -293,7 +293,10 @@
   <section class="card full">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <h2 style="margin:0;">Report — Saved Cabinets</h2>
-      <button id="exportBtn" class="btn-primary">Export Report</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="exportPdfBtn" class="btn-primary">Export PDF</button>
+        <button id="exportCsvBtn" class="btn-primary" style="background:#475569;">Export CSV</button>
+      </div>
     </div>
 
     <div id="savedList" style="margin-top:16px;"></div>
@@ -688,47 +691,140 @@ function download(filename, text, type) {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-function exportReport() {
+// Shared report data used by both CSV and PDF exports.
+function buildReportData() {
+  const agg = {};
+  let totLumber = 0;
+  const cabinets = savedCabinets.map(s => {
+    const sum = summarize(s, agg);
+    totLumber += sum.lumberLF;
+    return { s, sum };
+  });
+  const groups = Object.values(agg)
+    .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick);
+  const gArea = groups.reduce((t, g) => t + g.area, 0);
+  const gSheets = groups.reduce((t, g) => t + g.sheets, 0);
+  return { cabinets, groups, gArea, gSheets, totLumber, generated: new Date().toLocaleString() };
+}
+
+function exportCSV() {
   if (savedCabinets.length === 0) {
     alert('No cabinets to export. Save at least one cabinet first.');
     return;
   }
+  const d = buildReportData();
   const rows = [];
   rows.push(['Cabinet Sheet Goods Report']);
-  rows.push(['Generated', new Date().toLocaleString()]);
+  rows.push(['Generated', d.generated]);
   rows.push([]);
   rows.push(['Name', 'Width', 'Height', 'Depth', 'Qty', 'Doors', 'Drawers', 'Shelves',
     'Back', 'Shelf', 'Drawer box', 'Drawer bottom', 'Toe kick', 'Drawer bank',
     'Grain match', 'Sheet size', 'Sheet goods (ft²)', 'Toe-kick lumber (lf)', 'Sheets']);
-
-  const agg = {};
-  let totLumber = 0;
-  savedCabinets.forEach(s => {
-    const sum = summarize(s, agg);
-    totLumber += sum.lumberLF;
+  d.cabinets.forEach(({ s, sum }) => {
     rows.push([s.name, s.width, s.height, s.depth, s.qty, s.doors, s.drawers, s.shelves,
       label(s.tBack), label(s.tShelf), label(s.tBox), label(s.tBottom), TOE_LABELS[s.toeKick],
       s.drawerBank ? 'Yes' : 'No', s.grainMatch ? `Yes (${s.grainWaste}%)` : 'No',
       s.sheetSize.replace('x', '×'), round2(sum.area), round2(sum.lumberLF), sum.sheets]);
   });
-
   rows.push([]);
   rows.push(['Project Totals by Material & Thickness']);
   rows.push(['Material', 'Thickness', 'Total (ft²)', 'Sheets']);
-  let gArea = 0, gSheets = 0;
-  Object.values(agg)
-    .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick)
-    .forEach(g => { gArea += g.area; gSheets += g.sheets; rows.push([g.material, label(g.thick), round2(g.area), g.sheets]); });
-  rows.push(['Total', '', round2(gArea), gSheets]);
-
-  if (totLumber > 0) {
+  d.groups.forEach(g => rows.push([g.material, label(g.thick), round2(g.area), g.sheets]));
+  rows.push(['Total', '', round2(d.gArea), d.gSheets]);
+  if (d.totLumber > 0) {
     rows.push([]);
-    rows.push(['Toe-kick lumber (linear ft)', round2(totLumber)]);
-    rows.push(['Eight-foot 2x4s (est.)', Math.ceil(totLumber / 8)]);
+    rows.push(['Toe-kick lumber (linear ft)', round2(d.totLumber)]);
+    rows.push(['Eight-foot 2x4s (est.)', Math.ceil(d.totLumber / 8)]);
   }
-
   const csv = rows.map(r => r.map(csvCell).join(',')).join('\n');
   download('cabinet-report.csv', csv, 'text/csv');
+}
+
+// PDF export via the browser's print-to-PDF on a formatted report window.
+function exportPDF() {
+  if (savedCabinets.length === 0) {
+    alert('No cabinets to export. Save at least one cabinet first.');
+    return;
+  }
+  const d = buildReportData();
+  const e = escapeHtml;
+
+  const cabRows = d.cabinets.map(({ s, sum }) => `
+    <tr>
+      <td>${e(s.name)}</td>
+      <td>${fmt(s.width)} × ${fmt(s.height)} × ${fmt(s.depth)}</td>
+      <td class="num">${s.qty}</td>
+      <td class="num">${s.doors}</td>
+      <td class="num">${s.drawers}</td>
+      <td class="num">${s.shelves}</td>
+      <td>${e(TOE_LABELS[s.toeKick])}</td>
+      <td class="num">${fmt(sum.area)}</td>
+      <td class="num">${sum.lumberLF > 0 ? fmt(sum.lumberLF) : '—'}</td>
+      <td class="num">${sum.sheets}</td>
+    </tr>`).join('');
+
+  const totalRows = d.groups.map(g => `
+    <tr>
+      <td>${e(g.material)}</td>
+      <td>${label(g.thick)}</td>
+      <td class="num">${fmt(g.area)}</td>
+      <td class="num">${g.sheets}</td>
+    </tr>`).join('');
+
+  const lumberBlock = d.totLumber > 0
+    ? `<p class="lumber"><strong>Toe-kick lumber:</strong> ${fmt(d.totLumber)} linear ft
+       (≈ ${Math.ceil(d.totLumber / 8)} eight-foot 2x4s)</p>`
+    : '';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Cabinet Sheet Goods Report</title>
+    <style>
+      body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+             color:#1f2933; margin:32px; }
+      h1 { font-size:20px; margin:0 0 2px; }
+      h2 { font-size:14px; margin:24px 0 8px; }
+      .gen { color:#6b7280; font-size:12px; margin:0 0 8px; }
+      table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:8px; }
+      th, td { border:1px solid #d1d5db; padding:6px 8px; text-align:left; }
+      th { background:#f1f5f9; }
+      td.num, th.num { text-align:right; }
+      tfoot td, tr.total td { font-weight:700; background:#f8fafc; }
+      .lumber { font-size:13px; }
+      @media print { body { margin:0; } }
+    </style></head><body>
+    <h1>Cabinet Sheet Goods Report</h1>
+    <p class="gen">Generated ${e(d.generated)}</p>
+
+    <h2>Cabinets (${d.cabinets.length})</h2>
+    <table>
+      <thead><tr>
+        <th>Name</th><th>W × H × D (in)</th><th class="num">Qty</th>
+        <th class="num">Doors</th><th class="num">Drawers</th><th class="num">Shelves</th>
+        <th>Toe kick</th><th class="num">Sheet goods (ft²)</th>
+        <th class="num">Lumber (lf)</th><th class="num">Sheets</th>
+      </tr></thead>
+      <tbody>${cabRows}</tbody>
+    </table>
+
+    <h2>Project Totals by Material &amp; Thickness</h2>
+    <table>
+      <thead><tr><th>Material</th><th>Thickness</th><th class="num">Total (ft²)</th><th class="num">Sheets</th></tr></thead>
+      <tbody>${totalRows}</tbody>
+      <tfoot><tr class="total"><td colspan="2">Total</td><td class="num">${fmt(d.gArea)}</td><td class="num">${d.gSheets}</td></tr></tfoot>
+    </table>
+    ${lumberBlock}
+
+    <script>window.onload = function(){ window.print(); };<\/script>
+    </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) {
+    alert('Please allow pop-ups for this site to export a PDF.');
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 // ---- wire up -----------------------------------------------------------
@@ -737,7 +833,8 @@ document.querySelectorAll('input, select').forEach(el => {
 });
 document.getElementById('saveBtn').addEventListener('click', saveCabinet);
 document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
-document.getElementById('exportBtn').addEventListener('click', exportReport);
+document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
+document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
 
 render();
 renderReport();
