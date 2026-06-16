@@ -153,6 +153,14 @@
         <select id="tDrawerBottom"></select>
       </div>
       <div class="field">
+        <label>Toe Kick <span class="hint">(material)</span></label>
+        <select id="toeKick">
+          <option value="ply" selected>3/4" Plywood</option>
+          <option value="pvc">3/4" PVC</option>
+          <option value="lumber">2x4 Treated Lumber</option>
+        </select>
+      </div>
+      <div class="field">
         <label>Quantity of this cabinet</label>
         <input id="qty" type="number" min="1" step="1" value="1">
       </div>
@@ -168,6 +176,10 @@
         <div class="field">
           <label>Side clearance per side <span class="hint">(in)</span></label>
           <input id="clearance" type="number" min="0" step="0.0625" value="0.5">
+        </div>
+        <div class="field">
+          <label>Toe kick height <span class="hint">(in)</span></label>
+          <input id="toeKickH" type="number" min="0" step="0.25" value="4">
         </div>
         <div class="field">
           <label>Sheet size <span class="hint">(for sheet count)</span></label>
@@ -195,9 +207,10 @@
     </div>
 
     <table id="thicknessTable">
-      <caption>Totals by thickness <span class="muted" id="qtyLabel"></span></caption>
+      <caption>Sheet goods by material &amp; thickness <span class="muted" id="qtyLabel"></span></caption>
       <thead>
         <tr>
+          <th>Material</th>
           <th>Thickness</th>
           <th class="num">Per cabinet (ft²)</th>
           <th class="num">Total (ft²)</th>
@@ -207,6 +220,11 @@
       <tbody id="thicknessBody"></tbody>
     </table>
 
+    <div id="lumberBox" class="total-box" style="display:none; background:#f0fdf4; border-color:#bbf7d0; margin-top:16px;">
+      <div class="big" id="lumberTotal" style="color:var(--good);"></div>
+      <div class="sub" id="lumberSub"></div>
+    </div>
+
     <details style="margin-top:16px;">
       <summary>Per-cabinet component breakdown</summary>
       <table style="margin-top:12px;">
@@ -215,7 +233,7 @@
             <th>Component</th>
             <th class="num">Qty</th>
             <th>Size (in)</th>
-            <th>Thick</th>
+            <th>Material</th>
             <th class="num">ft²</th>
           </tr>
         </thead>
@@ -289,10 +307,10 @@ function calc() {
   const doorH = Math.max(0, H - (drawers > 0 ? drawerStack : 0));
 
   const parts = [];
-  const add = (name, qty, w, h, thick) => {
+  const add = (name, qty, w, h, thick, material = 'Plywood') => {
     if (qty <= 0 || w <= 0 || h <= 0) return;
     const area = (qty * w * h) / SQIN_PER_SQFT;
-    parts.push({ name, qty, w, h, thick, area });
+    parts.push({ name, qty, w, h, thick, material, area });
   };
 
   // Carcass
@@ -314,15 +332,32 @@ function calc() {
     add('Drawer bottoms', drawers, boxW, boxD, tBottom);
   }
 
-  // Group by thickness
-  const byThick = {};
-  parts.forEach(p => { byThick[p.thick] = (byThick[p.thick] || 0) + p.area; });
+  // Toe kick — a base frame of front/back rails plus two end pieces.
+  // Plywood/PVC are sheet goods (3/4"); 2x4 lumber is measured in linear feet.
+  const toeKickOpt = document.getElementById('toeKick').value;
+  const toeKickH = num('toeKickH');
+  let lumberLF = 0;
+  if (toeKickOpt === 'ply' || toeKickOpt === 'pvc') {
+    const mat = toeKickOpt === 'ply' ? 'Plywood' : 'PVC';
+    add('Toe kick front/back', 2, W, toeKickH, 0.75, mat);
+    add('Toe kick ends', 2, D, toeKickH, 0.75, mat);
+  } else if (toeKickOpt === 'lumber') {
+    lumberLF = (2 * W + 2 * D) / 12;
+  }
 
-  return { parts, byThick, qty, sheetArea, sheetW, sheetH };
+  // Group sheet goods by material + thickness
+  const byGroup = {};
+  parts.forEach(p => {
+    const key = p.material + '|' + p.thick;
+    if (!byGroup[key]) byGroup[key] = { material: p.material, thick: p.thick, area: 0 };
+    byGroup[key].area += p.area;
+  });
+
+  return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF };
 }
 
 function render() {
-  const { parts, byThick, qty, sheetArea, sheetW, sheetH } = calc();
+  const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF } = calc();
 
   // breakdown table
   const bb = document.getElementById('breakdownBody');
@@ -334,24 +369,25 @@ function render() {
     tr.innerHTML = `<td>${p.name}</td>
       <td class="num">${p.qty}</td>
       <td>${fmt(p.w)} × ${fmt(p.h)}</td>
-      <td>${label(p.thick)}</td>
+      <td>${label(p.thick)} ${p.material}</td>
       <td class="num">${fmt(p.area)}</td>`;
     bb.appendChild(tr);
   });
 
-  // thickness table
+  // sheet goods table, grouped by material + thickness
   const tb = document.getElementById('thicknessBody');
   tb.innerHTML = '';
   let grand = 0, grandSheets = 0;
-  Object.keys(byThick)
-    .map(Number).sort((a, b) => a - b)
-    .forEach(t => {
-      const per = byThick[t];
+  Object.values(byGroup)
+    .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick)
+    .forEach(g => {
+      const per = g.area;
       const tot = per * qty;
       const sheets = sheetArea > 0 ? Math.ceil(tot / sheetArea) : 0;
       grand += tot; grandSheets += sheets;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><span class="pill">${label(t)}</span></td>
+      tr.innerHTML = `<td>${g.material}</td>
+        <td><span class="pill">${label(g.thick)}</span></td>
         <td class="num">${fmt(per)}</td>
         <td class="num">${fmt(tot)}</td>
         <td class="num">${sheets}</td>`;
@@ -360,7 +396,7 @@ function render() {
   // totals row
   const tr = document.createElement('tr');
   tr.className = 'grp';
-  tr.innerHTML = `<td>Total</td>
+  tr.innerHTML = `<td colspan="2">Total</td>
     <td class="num">${fmt(perCab)}</td>
     <td class="num">${fmt(grand)}</td>
     <td class="num">${grandSheets}</td>`;
@@ -371,7 +407,20 @@ function render() {
     `${fmt(perCab)} ft² per cabinet × ${qty} = ${fmt(grand)} ft² · ~${grandSheets} sheet${grandSheets === 1 ? '' : 's'}`;
   document.getElementById('qtyLabel').textContent = `(× ${qty} cabinet${qty === 1 ? '' : 's'})`;
   document.getElementById('sheetNote').textContent =
-    `Sheet count assumes ${fmt(sheetW)}" × ${fmt(sheetH)}" sheets (${fmt(sheetArea)} ft² each) and is rounded up per thickness — it does not account for cut layout / waste.`;
+    `Sheet count assumes ${fmt(sheetW)}" × ${fmt(sheetH)}" sheets (${fmt(sheetArea)} ft² each) and is rounded up per material/thickness — it does not account for cut layout / waste.`;
+
+  // toe-kick lumber (only when 2x4 treated lumber is selected)
+  const lumberBox = document.getElementById('lumberBox');
+  if (lumberLF > 0) {
+    const totLF = lumberLF * qty;
+    const studs = Math.ceil(totLF / 8); // standard 8' 2x4
+    lumberBox.style.display = '';
+    document.getElementById('lumberTotal').textContent = fmt(totLF) + ' linear ft';
+    document.getElementById('lumberSub').textContent =
+      `Toe kick: 2x4 treated lumber · ${fmt(lumberLF)} ft per cabinet × ${qty} ≈ ${studs} eight-foot 2x4${studs === 1 ? '' : 's'}`;
+  } else {
+    lumberBox.style.display = 'none';
+  }
 }
 
 document.querySelectorAll('input, select').forEach(el => {

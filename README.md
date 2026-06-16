@@ -12,6 +12,10 @@ Open `index.html` in any web browser — no build step or server required.
 3. Choose the **material thickness** for the cabinet back, shelves, drawer
    boxes, and drawer bottoms. The carcass and door/drawer fronts are always
    3/4" material.
+4. Choose the **toe kick material**: 3/4" plywood, 3/4" PVC, or 2x4 treated
+   lumber. Plywood and PVC are counted as sheet goods (tracked separately by
+   material); 2x4 lumber is reported in linear feet with an estimated count of
+   eight-foot boards.
 4. Enter a **quantity** to multiply the totals across multiple identical cabinets.
 
 Results update live and show:
@@ -39,6 +43,7 @@ doors): the drawer faces are then divided evenly across the full cabinet height.
 | Drawer faces | Width × drawer face height (default 6") |
 | Drawer box sides / front / back | box height is always 2" shorter than the face |
 | Drawer bottoms | inner width × box depth |
+| Toe kick | base frame: front/back rails (×Width) + 2 ends (×Depth) |
 
 The sheet-count estimate rounds up per thickness using the selected sheet size
 — 4' × 8' (default), 5' × 10', or 5' × 12' — and does not account for cut
