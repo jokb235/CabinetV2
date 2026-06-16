@@ -227,14 +227,8 @@
     <div class="row2">
       <div class="field">
         <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
-          <input id="lamFronts" type="checkbox" style="width:auto;" checked>
-          Door &amp; drawer fronts
-        </label>
-      </div>
-      <div class="field">
-        <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
-          <input id="lamFrontEdges" type="checkbox" style="width:auto;" checked>
-          Cabinet front edges
+          <input id="lamFaces" type="checkbox" style="width:auto;" checked>
+          Cabinet faces <span class="hint" style="font-weight:400;">(front edges)</span>
         </label>
       </div>
       <div class="field">
@@ -426,8 +420,7 @@ function readForm() {
     toeKick: document.getElementById('toeKick').value,
     lamEnabled: document.getElementById('lamEnabled').checked,
     lamFinEnds: num('lamFinEnds'),
-    lamFronts: document.getElementById('lamFronts').checked,
-    lamFrontEdges: document.getElementById('lamFrontEdges').checked,
+    lamFaces: document.getElementById('lamFaces').checked,
     lamBottom: document.getElementById('lamBottom').checked,
     lamSheet: document.getElementById('lamSheet').value,
   };
@@ -449,8 +442,7 @@ function applyState(s) {
   document.getElementById('grainMatch').checked = !!s.grainMatch;
   document.getElementById('lamEnabled').checked = !!s.lamEnabled;
   document.getElementById('lamFinEnds').value = s.lamFinEnds || 0;
-  document.getElementById('lamFronts').checked = !!s.lamFronts;
-  document.getElementById('lamFrontEdges').checked = !!s.lamFrontEdges;
+  document.getElementById('lamFaces').checked = !!s.lamFaces;
   document.getElementById('lamBottom').checked = !!s.lamBottom;
   document.getElementById('lamSheet').value = s.lamSheet || '48x96';
 }
@@ -544,11 +536,7 @@ function calc(s) {
     const addLam = (name, a) => { if (a > 0) { laminateParts.push({ name, area: a }); laminateArea += a; } };
     const finEnds = Math.max(0, Math.min(2, Math.floor(s.lamFinEnds || 0)));
     addLam('Finished ends', finEnds * H * D / SQIN_PER_SQFT);
-    if (s.lamFronts) {
-      const frontArea = parts.filter(p => p.material === FRONT_MAT).reduce((t, p) => t + p.area, 0);
-      addLam('Door & drawer fronts', frontArea);
-    }
-    if (s.lamFrontEdges) addLam('Cabinet front edges', (2 * H + 2 * W) * tCar / SQIN_PER_SQFT);
+    if (s.lamFaces) addLam('Cabinet faces', (2 * H + 2 * W) * tCar / SQIN_PER_SQFT);
     if (s.lamBottom) addLam('Wall cabinet bottom', W * D / SQIN_PER_SQFT);
   }
 

@@ -76,9 +76,8 @@ for (each toggleable):
 | Surface | How it's sized |
 |---------|----------------|
 | Finished ends (0–2) | Height × Depth per exposed end |
-| Door & drawer fronts | the door + drawer face area |
-| Cabinet front edges | front-edge perimeter (2×Height + 2×Width) × 3/4" |
-| Wall cabinet bottom | Width × Depth |
+| Cabinet faces | front-edge perimeter (2×Height + 2×Width) × 3/4" |
+| Wall cabinet bottom *(toggleable)* | Width × Depth |
 
 The laminate total (area and estimated sheets) appears in the live results, the
 saved-cabinet report, and both the CSV and PDF exports.
