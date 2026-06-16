@@ -9,8 +9,9 @@ Open `index.html` in any web browser — no build step or server required.
 
 1. Enter the overall cabinet **width, height, and depth** (inches).
 2. Enter how many **doors, drawers, and shelves** the cabinet has.
-3. Choose the **material thickness** for the carcass/doors, cabinet back,
-   shelves, drawer boxes, and drawer bottoms.
+3. Choose the **material thickness** for the cabinet back, shelves, drawer
+   boxes, and drawer bottoms. The carcass and door/drawer fronts are always
+   3/4" material.
 4. Enter a **quantity** to multiply the totals across multiple identical cabinets.
 
 Results update live and show:

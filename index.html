@@ -126,11 +126,8 @@
     </div>
 
     <h2 style="margin-top:8px;">Material Thickness</h2>
+    <p class="note" style="margin-top:0;">Cabinet carcass &amp; door/drawer fronts are fixed at 3/4" material.</p>
     <div class="row2">
-      <div class="field">
-        <label>Carcass / Doors <span class="hint">(sides, top, bottom, fronts)</span></label>
-        <select id="tCarcass"></select>
-      </div>
       <div class="field">
         <label>Cabinet Back</label>
         <select id="tBack"></select>
@@ -244,7 +241,6 @@ function fillSelect(id, def) {
     el.appendChild(o);
   });
 }
-fillSelect('tCarcass', 0.75);
 fillSelect('tBack', 0.25);
 fillSelect('tShelf', 0.75);
 fillSelect('tDrawerBox', 0.5);
@@ -262,7 +258,7 @@ function calc() {
   const shelves = Math.max(0, Math.floor(num('shelves')));
   const qty = Math.max(1, Math.floor(num('qty')));
 
-  const tCar = parseFloat(document.getElementById('tCarcass').value);
+  const tCar = 0.75; // carcass & door/drawer fronts are always 3/4"
   const tBack = parseFloat(document.getElementById('tBack').value);
   const tShelf = parseFloat(document.getElementById('tShelf').value);
   const tBox = parseFloat(document.getElementById('tDrawerBox').value);
