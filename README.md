@@ -33,8 +33,11 @@ editable under **Advanced construction assumptions**:
 | Back | Width × Height |
 | Shelves | (Width − 2× carcass thickness) × (Depth − 1") |
 | Door fronts | fill the opening above the drawer stack |
-| Drawer faces | Width × drawer face height |
-| Drawer box sides / front / back | derived from depth, width, and box height |
+
+Check **Drawer Bank** when the cabinet front is an even stack of drawers (no
+doors): the drawer faces are then divided evenly across the full cabinet height.
+| Drawer faces | Width × drawer face height (default 6") |
+| Drawer box sides / front / back | box height is always 2" shorter than the face |
 | Drawer bottoms | inner width × box depth |
 
 The sheet-count estimate rounds up per thickness using the selected sheet size

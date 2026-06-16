@@ -125,6 +125,14 @@
       </div>
     </div>
 
+    <div class="field" style="margin-top:-4px;">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input id="drawerBank" type="checkbox" style="width:auto;">
+        Drawer Bank
+        <span class="hint" style="font-weight:400;">— drawers evenly split the full cabinet height (no doors)</span>
+      </label>
+    </div>
+
     <h2 style="margin-top:8px;">Material Thickness</h2>
     <p class="note" style="margin-top:0;">Cabinet carcass &amp; door/drawer fronts are fixed at 3/4" material.</p>
     <div class="row2">
@@ -154,11 +162,7 @@
       <summary>Advanced construction assumptions</summary>
       <div class="row2" style="margin-top:12px;">
         <div class="field">
-          <label>Drawer box height <span class="hint">(in)</span></label>
-          <input id="drawerBoxH" type="number" min="0" step="0.25" value="4">
-        </div>
-        <div class="field">
-          <label>Drawer face height <span class="hint">(in)</span></label>
+          <label>Drawer face height <span class="hint">(in — ignored when Drawer Bank is on)</span></label>
           <input id="drawerFaceH" type="number" min="0" step="0.25" value="6">
         </div>
         <div class="field">
@@ -265,8 +269,11 @@ function calc() {
   const tBox = parseFloat(document.getElementById('tDrawerBox').value);
   const tBottom = parseFloat(document.getElementById('tDrawerBottom').value);
 
-  const boxH = num('drawerBoxH');
-  const faceH = num('drawerFaceH');
+  const drawerBank = document.getElementById('drawerBank').checked;
+  // In a drawer bank the faces evenly split the full cabinet height (no doors).
+  // Otherwise each face uses the configured face height. Box height is always 2" shorter.
+  const faceH = (drawerBank && drawers > 0) ? (H / drawers) : num('drawerFaceH');
+  const boxH = Math.max(0, faceH - 2);
   const clr = num('clearance');
   const [sheetW, sheetH] = document.getElementById('sheetSize').value.split('x').map(Number);
   const sheetArea = (sheetW * sheetH) / SQIN_PER_SQFT;
