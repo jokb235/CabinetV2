@@ -16,7 +16,7 @@ Open `index.html` in any web browser — no build step or server required.
    lumber. Plywood and PVC are counted as sheet goods (tracked separately by
    material); 2x4 lumber is reported in linear feet with an estimated count of
    eight-foot boards.
-4. Enter a **quantity** to multiply the totals across multiple identical cabinets.
+5. Enter a **quantity** to multiply the totals across multiple identical cabinets.
 
 Results update live and show:
 
