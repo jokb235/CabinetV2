@@ -110,6 +110,29 @@
   .saved-item .name { font-weight: 700; font-size: 0.95rem; }
   .saved-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+
+  a.buy {
+    display: inline-block; text-decoration: none; font-size: 0.72rem; font-weight: 700;
+    color: #b45309; background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 5px; padding: 1px 7px;
+  }
+  a.buy:hover { background: #fef3c7; }
+
+  footer.site {
+    max-width: 1080px; margin: 0 auto; padding: 20px 24px 60px;
+    color: var(--muted); font-size: 0.8rem;
+  }
+  footer.site a { color: var(--accent); }
+
+  #cookieBanner {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: var(--ink); color: #e5e7eb; padding: 14px 18px;
+    display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap;
+    box-shadow: 0 -2px 12px rgba(0,0,0,.2);
+  }
+  #cookieBanner p { margin: 0; font-size: 0.85rem; max-width: 720px; }
+  #cookieBanner a { color: #93c5fd; }
+  #cookieBanner .cookie-actions { display: flex; gap: 8px; }
 </style>
 </head>
 <body>
@@ -370,6 +393,7 @@
           <th class="num">Per cabinet (ft²)</th>
           <th class="num">Total (ft²)</th>
           <th class="num">Sheets</th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="thicknessBody"></tbody>
@@ -388,7 +412,7 @@
     <div id="extrasBox" style="display:none; margin-top:16px;">
       <table>
         <caption>Edge banding &amp; hardware <span class="muted" id="extrasQty"></span></caption>
-        <thead><tr><th>Item</th><th class="num">Qty</th></tr></thead>
+        <thead><tr><th>Item</th><th class="num">Qty</th><th></th></tr></thead>
         <tbody id="extrasBody"></tbody>
       </table>
     </div>
@@ -449,7 +473,24 @@
   </section>
 </div>
 
+<footer class="site">
+  <p><strong>Affiliate disclosure:</strong> Some "Buy" links are affiliate links —
+  we may earn a commission from qualifying purchases at no extra cost to you.</p>
+  <p><a href="privacy.html">Privacy Policy</a></p>
+</footer>
+
+<div id="cookieBanner" style="display:none;">
+  <p>This site stores your cabinets and project info in your browser
+  (local storage) and uses affiliate links that may set cookies on the
+  destination sites. See our <a href="privacy.html">Privacy Policy</a>.</p>
+  <div class="cookie-actions">
+    <button id="cookieAccept" class="btn-primary">Accept</button>
+    <button id="cookieDecline" class="btn-primary" style="background:#475569;">Decline</button>
+  </div>
+</div>
+
 <script src="calc.js"></script>
+<script src="affiliate.js"></script>
 <script>
 const THICKNESSES = [
   { v: 0.25,   label: '1/4"' },
@@ -606,7 +647,8 @@ function render() {
         <td><span class="pill">${label(g.thick)}</span></td>
         <td class="num">${fmt(per)}</td>
         <td class="num">${fmt(tot)}</td>
-        <td class="num">${sheets}</td>`;
+        <td class="num">${sheets}</td>
+        <td class="num">${affiliateLink(affiliateSheetQuery(g.material, label(g.thick)))}</td>`;
       tb.appendChild(tr);
     });
   // totals row
@@ -615,7 +657,8 @@ function render() {
   tr.innerHTML = `<td colspan="2">Total</td>
     <td class="num">${fmt(perCab)}</td>
     <td class="num">${fmt(grand)}</td>
-    <td class="num">${grandSheets}</td>`;
+    <td class="num">${grandSheets}</td>
+    <td></td>`;
   tb.appendChild(tr);
 
   document.getElementById('grandTotal').textContent = fmt(grand) + ' ft²';
@@ -635,8 +678,9 @@ function render() {
     const studs = Math.ceil(totLF / 8); // standard 8' 2x4
     lumberBox.style.display = '';
     document.getElementById('lumberTotal').textContent = fmt(totLF) + ' linear ft';
-    document.getElementById('lumberSub').textContent =
-      `Toe kick: 2x4 treated lumber · ${fmt(lumberLF)} ft per cabinet × ${qty} ≈ ${studs} eight-foot 2x4${studs === 1 ? '' : 's'}`;
+    document.getElementById('lumberSub').innerHTML =
+      `Toe kick: 2x4 treated lumber · ${fmt(lumberLF)} ft per cabinet × ${qty} ≈ ${studs} eight-foot 2x4${studs === 1 ? '' : 's'} ` +
+      affiliateLink(AFFILIATE_QUERIES['Lumber']);
   } else {
     lumberBox.style.display = 'none';
   }
@@ -650,8 +694,9 @@ function render() {
     document.getElementById('laminateTotal').textContent =
       `${fmt(totLam)} ft² · ${lamSheets} laminate sheet${lamSheets === 1 ? '' : 's'}`;
     const surfaces = laminateParts.map(p => `${p.name} ${fmt(p.area)} ft²`).join(' · ');
-    document.getElementById('laminateSub').textContent =
-      `${surfaces} — ${fmt(laminateArea)} ft²/cabinet × ${qty}, on ${fmt(lamW)}"×${fmt(lamH)}" sheets`;
+    document.getElementById('laminateSub').innerHTML =
+      `${surfaces} — ${fmt(laminateArea)} ft²/cabinet × ${qty}, on ${fmt(lamW)}"×${fmt(lamH)}" sheets ` +
+      affiliateLink(AFFILIATE_QUERIES['Laminate']);
   } else {
     laminateBox.style.display = 'none';
   }
@@ -659,17 +704,17 @@ function render() {
   // edge banding (linear ft) + hardware counts, scaled by quantity
   const extrasBody = document.getElementById('extrasBody');
   extrasBody.innerHTML = '';
-  const exRow = (item, qtyText) => {
+  const exRow = (item, qtyText, query) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${item}</td><td class="num">${qtyText}</td>`;
+    tr.innerHTML = `<td>${item}</td><td class="num">${qtyText}</td><td class="num">${affiliateLink(query)}</td>`;
     extrasBody.appendChild(tr);
   };
   let anyExtra = false;
   Object.keys(edgeBanding).sort().forEach(k => {
-    if (edgeBanding[k] > 0) { anyExtra = true; exRow(`Edge banding — ${k}`, `${fmt(edgeBanding[k] * qty)} lf`); }
+    if (edgeBanding[k] > 0) { anyExtra = true; exRow(`Edge banding — ${k}`, `${fmt(edgeBanding[k] * qty)} lf`, AFFILIATE_QUERIES[k]); }
   });
   Object.keys(hardware).forEach(k => {
-    if (hardware[k] > 0) { anyExtra = true; exRow(k, String(hardware[k] * qty)); }
+    if (hardware[k] > 0) { anyExtra = true; exRow(k, String(hardware[k] * qty), AFFILIATE_QUERIES[k]); }
   });
   document.getElementById('extrasBox').style.display = anyExtra ? '' : 'none';
   document.getElementById('extrasQty').textContent = `(× ${qty} cabinet${qty === 1 ? '' : 's'})`;
@@ -1124,6 +1169,24 @@ try {
   if (p) applyProject(p);
 } catch (e) { /* ignore */ }
 
+// ---- cookie consent banner ---------------------------------------------
+// Records the visitor's choice. Gate any future non-essential cookies
+// (analytics, ad personalization) on window.cookieConsent === 'accepted'.
+function setupCookieBanner() {
+  const banner = document.getElementById('cookieBanner');
+  let choice = null;
+  try { choice = localStorage.getItem('cookieConsent'); } catch (e) { /* ignore */ }
+  window.cookieConsent = choice;
+  if (!choice) banner.style.display = '';
+  const record = v => {
+    try { localStorage.setItem('cookieConsent', v); } catch (e) { /* ignore */ }
+    window.cookieConsent = v;
+    banner.style.display = 'none';
+  };
+  document.getElementById('cookieAccept').addEventListener('click', () => record('accepted'));
+  document.getElementById('cookieDecline').addEventListener('click', () => record('declined'));
+}
+
 // ---- wire up -----------------------------------------------------------
 document.querySelectorAll('input, select').forEach(el => {
   el.addEventListener('input', render);
@@ -1135,6 +1198,7 @@ document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
 document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
 document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
 
+setupCookieBanner();
 render();
 renderReport();
 </script>

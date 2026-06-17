@@ -8,7 +8,16 @@ A simple, single-file web app that calculates the square footage of sheet goods
 - `index.html` — the page: layout, inputs, results/report rendering, and exports.
 - `calc.js` — the calculation engine (pure functions: `calc`, `summarize`,
   `sheetsFor`, etc.). `index.html` loads it with `<script src="calc.js">`, so
-  keep the two files together.
+  keep the files together.
+- `affiliate.js` — affiliate "Buy" link config. Set your program's `base` and
+  `tag` here; the links in the results then carry your tag. Links use
+  `rel="sponsored nofollow"` and an affiliate disclosure shows in the footer.
+- `privacy.html` — starter privacy policy. Replace the highlighted placeholders
+  (business name, contact, jurisdiction details) before publishing.
+
+A cookie-consent banner appears on first visit; the choice is saved in local
+storage and exposed as `window.cookieConsent` so you can gate any analytics/ad
+cookies you add later on `=== 'accepted'`.
 
 > **Note on privacy:** `calc.js` is downloaded to and runs in the visitor's
 > browser, so its contents are visible to anyone who opens the page source —
