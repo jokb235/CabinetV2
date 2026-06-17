@@ -231,15 +231,11 @@
       </label>
     </div>
 
-    <div class="field" style="margin-top:4px;">
-      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input id="drawerBank" type="checkbox" style="width:auto;">
-        Drawer Bank
-        <span class="hint" style="font-weight:400;">— drawers evenly split the full cabinet height (no doors)</span>
-      </label>
+    <div id="drawerBankMsg" class="pill" style="display:none; margin-top:4px; background:var(--accent-soft); color:var(--accent);">
+      Drawer Bank — drawers evenly split the full cabinet height
     </div>
 
-    <div class="field" style="margin-top:-4px;">
+    <div class="field" style="margin-top:8px;">
       <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
         <input id="grainMatch" type="checkbox" style="width:auto;">
         Grain Match
@@ -508,12 +504,13 @@ const sheetsFor = (area, sheetArea, material, wasteFactor) =>
 
 // ---- form state helpers ------------------------------------------------
 function readForm() {
+  const doors = Math.max(0, Math.floor(num('doors')));
+  const drawers = Math.max(0, Math.floor(num('drawers')));
+  const shelves = Math.max(0, Math.floor(num('shelves')));
   return {
     name: document.getElementById('cabName').value.trim(),
     width: num('width'), height: num('height'), depth: num('depth'),
-    doors: Math.max(0, Math.floor(num('doors'))),
-    drawers: Math.max(0, Math.floor(num('drawers'))),
-    shelves: Math.max(0, Math.floor(num('shelves'))),
+    doors, drawers, shelves,
     qty: Math.max(1, Math.floor(num('qty'))),
     tBack: parseFloat(document.getElementById('tBack').value),
     tShelf: parseFloat(document.getElementById('tShelf').value),
@@ -527,7 +524,8 @@ function readForm() {
     optHinge: val('optHinge'), optShelfSup: val('optShelfSup'), optSlideDuty: val('optSlideDuty'),
     optAdaSink: document.getElementById('optAdaSink').checked,
     optWardrobe: document.getElementById('optWardrobe').checked,
-    drawerBank: document.getElementById('drawerBank').checked,
+    // Auto-detected: a drawer-only cabinet (no doors, no shelves) is a drawer bank.
+    drawerBank: doors === 0 && shelves === 0 && drawers > 0,
     grainMatch: document.getElementById('grainMatch').checked,
     drawerFaceH: num('drawerFaceH'),
     clearance: num('clearance'),
@@ -566,7 +564,6 @@ function applyState(s) {
   document.getElementById('optWardrobe').checked = !!s.optWardrobe;
   document.getElementById('sheetSize').value = s.sheetSize;
   document.getElementById('toeKick').value = s.toeKick;
-  document.getElementById('drawerBank').checked = !!s.drawerBank;
   document.getElementById('grainMatch').checked = !!s.grainMatch;
   document.getElementById('lamEnabled').checked = !!s.lamEnabled;
   document.getElementById('lamFinEnds').value = s.lamFinEnds || 0;
@@ -722,8 +719,11 @@ function calc(s) {
 }
 
 function render() {
+  const state = readForm();
   const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor,
-    laminateParts, laminateArea, laminateSheetArea, lamW, lamH, edgeBanding, hardware } = calc(readForm());
+    laminateParts, laminateArea, laminateSheetArea, lamW, lamH, edgeBanding, hardware } = calc(state);
+
+  document.getElementById('drawerBankMsg').style.display = state.drawerBank ? '' : 'none';
 
   // breakdown table
   const bb = document.getElementById('breakdownBody');

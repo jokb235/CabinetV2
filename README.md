@@ -60,8 +60,9 @@ editable under **Advanced construction assumptions**:
 | Shelves | (Width − 2× carcass thickness) × (Depth − 1") |
 | Door fronts | fill the opening above the drawer stack |
 
-Check **Drawer Bank** when the cabinet front is an even stack of drawers (no
-doors): the drawer faces are then divided evenly across the full cabinet height.
+A cabinet with **no doors and no shelves** (drawers only) is automatically
+treated as a **drawer bank** — a "Drawer Bank" badge appears and the drawer
+faces are divided evenly across the full cabinet height.
 
 Door and drawer fronts are tracked as their own material, **Plywood (Fronts)**,
 separate from the rest of the carcass sheets — so the grain-matched faces can be
