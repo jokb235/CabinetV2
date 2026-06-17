@@ -3,9 +3,23 @@
 A simple, single-file web app that calculates the square footage of sheet goods
 (plywood / MDF panels) needed to build cabinets.
 
+## Files
+
+- `index.html` — the page: layout, inputs, results/report rendering, and exports.
+- `calc.js` — the calculation engine (pure functions: `calc`, `summarize`,
+  `sheetsFor`, etc.). `index.html` loads it with `<script src="calc.js">`, so
+  keep the two files together.
+
+> **Note on privacy:** `calc.js` is downloaded to and runs in the visitor's
+> browser, so its contents are visible to anyone who opens the page source —
+> splitting it into its own file organizes the code but does **not** hide the
+> formulas. To keep the math private it would have to run on a server that only
+> returns results.
+
 ## Usage
 
-Open `index.html` in any web browser — no build step or server required.
+Open `index.html` in any web browser — no build step or server required
+(`calc.js` must sit next to it).
 
 0. (Optional) Fill in **Project Information** (Project #, Name, Address) — it is
    saved in your browser and printed on the report header / exports.
