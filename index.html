@@ -118,6 +118,27 @@
   <p>Estimate the square footage of plywood / sheet goods needed to build your cabinets.</p>
 </header>
 
+<div style="max-width:1080px; margin:0 auto; padding:24px 24px 0;">
+  <section class="card">
+    <h2>Project Information</h2>
+    <div class="row">
+      <div class="field">
+        <label>Project #</label>
+        <input id="projNum" type="text" placeholder="e.g. 2025-104">
+      </div>
+      <div class="field">
+        <label>Project Name</label>
+        <input id="projName" type="text" placeholder="e.g. Smith Kitchen">
+      </div>
+      <div class="field">
+        <label>Project Address</label>
+        <input id="projAddr" type="text" placeholder="123 Main St">
+      </div>
+    </div>
+    <p class="note" style="margin-bottom:0;">Project details appear on the report header and in exports.</p>
+  </section>
+</div>
+
 <div class="wrap">
   <!-- INPUTS -->
   <section class="card">
@@ -153,7 +174,45 @@
       </div>
     </div>
 
-    <div class="field" style="margin-top:-4px;">
+    <h2 style="margin-top:8px;">Job-Specific Options</h2>
+    <div class="row2">
+      <div class="field">
+        <label>Dust Panels</label>
+        <select id="optDustPanels"><option>No</option><option>Yes</option></select>
+      </div>
+      <div class="field">
+        <label>Full Sub-Top</label>
+        <select id="optSubTop"><option>Yes</option><option>No</option></select>
+      </div>
+      <div class="field">
+        <label>Toe Kicks</label>
+        <select id="optToeKicks">
+          <option>Individual</option><option>Integral</option>
+          <option>Ladder</option><option>None</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Semi-Exposed</label>
+        <select id="optSemiExposed">
+          <option>None</option><option>Plastic Laminate</option>
+          <option>TFL</option><option>Liner</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Locks</label>
+        <select id="optLocks"><option>No</option><option>Yes</option></select>
+      </div>
+      <div class="field">
+        <label>Hinge Type</label>
+        <select id="optHinge"><option>European Style</option><option>5-Knuckle</option></select>
+      </div>
+      <div class="field">
+        <label>Shelf Supports</label>
+        <select id="optShelfSup"><option>5mm Pins</option><option>Recessed Pilasters</option></select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:4px;">
       <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
         <input id="drawerBank" type="checkbox" style="width:auto;">
         Drawer Bank
@@ -169,25 +228,23 @@
       </label>
     </div>
 
-    <h2 style="margin-top:8px;">Material Thickness</h2>
-    <p class="note" style="margin-top:0;">Cabinet carcass &amp; door/drawer fronts are fixed at 3/4" material.</p>
+    <h2 style="margin-top:8px;">Cabinet Box Construction</h2>
+    <p class="note" style="margin-top:0;">Cabinet core &amp; door/drawer fronts are fixed at 3/4" thick. Choose a material for each component.</p>
+    <table style="margin-bottom:12px;">
+      <thead>
+        <tr><th>Component</th><th>Thickness</th><th>Material</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Cabinet Core</td><td><span class="pill">3/4"</span></td><td><select id="mCore"></select></td></tr>
+        <tr><td>Cabinet Back</td><td><select id="tBack"></select></td><td><select id="mBack"></select></td></tr>
+        <tr><td>Door/Drawer Fronts</td><td><span class="pill">3/4"</span></td><td><select id="mFront"></select></td></tr>
+        <tr><td>Drawer Boxes</td><td><select id="tDrawerBox"></select></td><td><select id="mBox"></select></td></tr>
+        <tr><td>Drawer Bottoms</td><td><select id="tDrawerBottom"></select></td><td><select id="mBottom"></select></td></tr>
+        <tr><td>Shelves</td><td><select id="tShelf"></select></td><td><select id="mShelf"></select></td></tr>
+        <tr id="dustRow"><td>Dust Panels</td><td><select id="tDust"></select></td><td><select id="mDust"></select></td></tr>
+      </tbody>
+    </table>
     <div class="row2">
-      <div class="field">
-        <label>Cabinet Back</label>
-        <select id="tBack"></select>
-      </div>
-      <div class="field">
-        <label>Shelves</label>
-        <select id="tShelf"></select>
-      </div>
-      <div class="field">
-        <label>Drawer Boxes <span class="hint">(sides/front/back)</span></label>
-        <select id="tDrawerBox"></select>
-      </div>
-      <div class="field">
-        <label>Drawer Bottoms</label>
-        <select id="tDrawerBottom"></select>
-      </div>
       <div class="field">
         <label>Toe Kick <span class="hint">(material)</span></label>
         <select id="toeKick">
@@ -385,17 +442,34 @@ fillSelect('tBack', 0.25);
 fillSelect('tShelf', 0.75);
 fillSelect('tDrawerBox', 0.5);
 fillSelect('tDrawerBottom', 0.25);
+fillSelect('tDust', 0.5);
+
+// Core sheet-good materials (from the spec's Selectors sheet)
+const MATERIALS = ['Plywood', 'MDF', 'Particleboard', 'Marine Grade Plywood'];
+function fillMaterialSelect(id, def) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  MATERIALS.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    if (m === def) o.selected = true;
+    el.appendChild(o);
+  });
+}
+['mCore', 'mBack', 'mFront', 'mBox', 'mBottom', 'mShelf', 'mDust'].forEach(id => fillMaterialSelect(id, 'Plywood'));
 
 const SQIN_PER_SQFT = 144;
-// Door & drawer fronts are tracked as their own material so they can be ordered
-// separately (they're grain-matched). Grain-match waste applies only to these.
-const FRONT_MAT = 'Plywood (Fronts)';
+// Door & drawer fronts are tracked as their own material ("… (Fronts)") so they
+// can be ordered separately (grain-matched). Grain-match waste applies only here.
+const FRONT_SUFFIX = ' (Fronts)';
+const isFrontMat = m => typeof m === 'string' && m.endsWith(FRONT_SUFFIX);
 const num = id => parseFloat(document.getElementById(id).value) || 0;
+const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
 const label = v => (THICKNESSES.find(t => t.v === v) || {}).label || (v + '"');
 const fmt = n => (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 // Sheets for one material group; grain-match waste applies only to front material.
 const sheetsFor = (area, sheetArea, material, wasteFactor) =>
-  sheetArea > 0 ? Math.ceil((area * (material === FRONT_MAT ? wasteFactor : 1)) / sheetArea) : 0;
+  sheetArea > 0 ? Math.ceil((area * (isFrontMat(material) ? wasteFactor : 1)) / sheetArea) : 0;
 
 // ---- form state helpers ------------------------------------------------
 function readForm() {
@@ -410,6 +484,12 @@ function readForm() {
     tShelf: parseFloat(document.getElementById('tShelf').value),
     tBox: parseFloat(document.getElementById('tDrawerBox').value),
     tBottom: parseFloat(document.getElementById('tDrawerBottom').value),
+    tDust: parseFloat(document.getElementById('tDust').value),
+    mCore: val('mCore'), mBack: val('mBack'), mFront: val('mFront'),
+    mBox: val('mBox'), mBottom: val('mBottom'), mShelf: val('mShelf'), mDust: val('mDust'),
+    optDustPanels: val('optDustPanels'), optSubTop: val('optSubTop'), optToeKicks: val('optToeKicks'),
+    optSemiExposed: val('optSemiExposed'), optLocks: val('optLocks'),
+    optHinge: val('optHinge'), optShelfSup: val('optShelfSup'),
     drawerBank: document.getElementById('drawerBank').checked,
     grainMatch: document.getElementById('grainMatch').checked,
     drawerFaceH: num('drawerFaceH'),
@@ -436,6 +516,15 @@ function applyState(s) {
   document.getElementById('tShelf').value = s.tShelf;
   document.getElementById('tDrawerBox').value = s.tBox;
   document.getElementById('tDrawerBottom').value = s.tBottom;
+  if (s.tDust !== undefined) document.getElementById('tDust').value = s.tDust;
+  const setVal = (id, v, def) => { const el = document.getElementById(id); if (el) el.value = (v !== undefined && v !== '') ? v : def; };
+  setVal('mCore', s.mCore, 'Plywood'); setVal('mBack', s.mBack, 'Plywood'); setVal('mFront', s.mFront, 'Plywood');
+  setVal('mBox', s.mBox, 'Plywood'); setVal('mBottom', s.mBottom, 'Plywood');
+  setVal('mShelf', s.mShelf, 'Plywood'); setVal('mDust', s.mDust, 'Plywood');
+  setVal('optDustPanels', s.optDustPanels, 'No'); setVal('optSubTop', s.optSubTop, 'Yes');
+  setVal('optToeKicks', s.optToeKicks, 'Individual'); setVal('optSemiExposed', s.optSemiExposed, 'None');
+  setVal('optLocks', s.optLocks, 'No'); setVal('optHinge', s.optHinge, 'European Style');
+  setVal('optShelfSup', s.optShelfSup, '5mm Pins');
   document.getElementById('sheetSize').value = s.sheetSize;
   document.getElementById('toeKick').value = s.toeKick;
   document.getElementById('drawerBank').checked = !!s.drawerBank;
@@ -479,43 +568,62 @@ function calc(s) {
   const drawerStack = drawers * faceH;
   const doorH = Math.max(0, H - (drawers > 0 ? drawerStack : 0));
 
+  // Per-component materials (default Plywood for older saved data)
+  const mCore = s.mCore || 'Plywood';
+  const mBack = s.mBack || 'Plywood';
+  const mFront = (s.mFront || 'Plywood') + FRONT_SUFFIX; // ordered separately
+  const mBox = s.mBox || 'Plywood';
+  const mBottom = s.mBottom || 'Plywood';
+  const mShelf = s.mShelf || 'Plywood';
+  const mDust = s.mDust || 'Plywood';
+
   const parts = [];
-  const add = (name, qty, w, h, thick, material = 'Plywood') => {
+  const add = (name, qty, w, h, thick, material = mCore) => {
     if (qty <= 0 || w <= 0 || h <= 0) return;
     const area = (qty * w * h) / SQIN_PER_SQFT;
     parts.push({ name, qty, w, h, thick, material, area });
   };
 
   // Carcass
-  add('Sides', 2, D, H, tCar);
-  add('Top & Bottom', 2, innerW, D, tCar);
+  add('Sides', 2, D, H, tCar, mCore);
+  add('Bottom', 1, innerW, D, tCar, mCore);
+  // Top: full sub-top panel, or two ~4" stretchers front & back when "No"
+  if ((s.optSubTop || 'Yes') === 'No') add('Top stretchers', 2, innerW, 4, tCar, mCore);
+  else add('Top (sub-top)', 1, innerW, D, tCar, mCore);
   // Back
-  add('Back', 1, W, H, tBack);
+  add('Back', 1, W, H, tBack, mBack);
   // Shelves (span between sides)
-  add('Shelves', shelves, innerW, Math.max(0, D - 1), tShelf);
+  add('Shelves', shelves, innerW, Math.max(0, D - 1), tShelf, mShelf);
   // Doors (fill area above drawers; split across door count for sizing display)
   if (doors > 0 && doorH > 0) {
-    add('Door fronts', doors, W / doors, doorH, tCar, FRONT_MAT);
+    add('Door fronts', doors, W / doors, doorH, tCar, mFront);
   }
   // Drawers
   if (drawers > 0) {
-    add('Drawer faces', drawers, W, faceH, tCar, FRONT_MAT);
-    add('Drawer box sides', drawers * 2, boxD, boxH, tBox);
-    add('Drawer box front/back', drawers * 2, boxW, boxH, tBox);
-    add('Drawer bottoms', drawers, boxW, boxD, tBottom);
+    add('Drawer faces', drawers, W, faceH, tCar, mFront);
+    add('Drawer box sides', drawers * 2, boxD, boxH, tBox, mBox);
+    add('Drawer box front/back', drawers * 2, boxW, boxH, tBox, mBox);
+    add('Drawer bottoms', drawers, boxW, boxD, tBottom, mBottom);
+  }
+  // Dust panels — one horizontal divider per drawer when enabled
+  if ((s.optDustPanels || 'No') === 'Yes' && drawers > 0) {
+    add('Dust panels', drawers, innerW, Math.max(0, D - 1), s.tDust || 0.5, mDust);
   }
 
   // Toe kick — a base frame of front/back rails plus two end pieces.
   // Plywood/PVC are sheet goods (3/4"); 2x4 lumber is measured in linear feet.
+  // Suppressed when the Toe Kicks option is set to "None".
   const toeKickOpt = s.toeKick;
   const toeKickH = s.toeKickH;
   let lumberLF = 0;
-  if (toeKickOpt === 'ply' || toeKickOpt === 'pvc') {
-    const mat = toeKickOpt === 'ply' ? 'Plywood' : 'PVC';
-    add('Toe kick front/back', 2, W, toeKickH, 0.75, mat);
-    add('Toe kick ends', 2, D, toeKickH, 0.75, mat);
-  } else if (toeKickOpt === 'lumber') {
-    lumberLF = (2 * W + 2 * D) / 12;
+  if ((s.optToeKicks || 'Individual') !== 'None') {
+    if (toeKickOpt === 'ply' || toeKickOpt === 'pvc') {
+      const mat = toeKickOpt === 'ply' ? 'Plywood' : 'PVC';
+      add('Toe kick front/back', 2, W, toeKickH, 0.75, mat);
+      add('Toe kick ends', 2, D, toeKickH, 0.75, mat);
+    } else if (toeKickOpt === 'lumber') {
+      lumberLF = (2 * W + 2 * D) / 12;
+    }
   }
 
   // Group sheet goods by material + thickness
@@ -811,16 +919,26 @@ function exportCSV() {
   const d = buildReportData();
   const rows = [];
   rows.push(['Cabinet Sheet Goods Report']);
+  const pj = readProject();
+  if (pj.num) rows.push(['Project #', pj.num]);
+  if (pj.name) rows.push(['Project Name', pj.name]);
+  if (pj.addr) rows.push(['Project Address', pj.addr]);
   rows.push(['Generated', d.generated]);
   rows.push([]);
   rows.push(['Name', 'Width', 'Height', 'Depth', 'Qty', 'Doors', 'Drawers', 'Shelves',
-    'Back', 'Shelf', 'Drawer box', 'Drawer bottom', 'Toe kick', 'Drawer bank',
+    'Core mat.', 'Front mat.', 'Back', 'Back mat.', 'Shelf', 'Shelf mat.',
+    'Drawer box', 'Drawer bottom', 'Toe kick', 'Toe kicks', 'Dust panels', 'Full sub-top',
+    'Semi-exposed', 'Locks', 'Hinge type', 'Shelf supports', 'Drawer bank',
     'Grain match', 'Sheet size', 'Sheet goods (ft²)', 'Toe-kick lumber (lf)', 'Sheets',
     'Laminate (ft²)', 'Laminate sheets']);
   d.cabinets.forEach(({ s, sum }) => {
     rows.push([s.name, s.width, s.height, s.depth, s.qty, s.doors, s.drawers, s.shelves,
-      label(s.tBack), label(s.tShelf), label(s.tBox), label(s.tBottom), TOE_LABELS[s.toeKick],
-      s.drawerBank ? 'Yes' : 'No', s.grainMatch ? `Yes (${s.grainWaste}%)` : 'No',
+      s.mCore || 'Plywood', s.mFront || 'Plywood', label(s.tBack), s.mBack || 'Plywood',
+      label(s.tShelf), s.mShelf || 'Plywood', label(s.tBox), label(s.tBottom), TOE_LABELS[s.toeKick],
+      s.optToeKicks || 'Individual', s.optDustPanels || 'No', s.optSubTop || 'Yes',
+      s.optSemiExposed || 'None', s.optLocks || 'No', s.optHinge || 'European Style',
+      s.optShelfSup || '5mm Pins', s.drawerBank ? 'Yes' : 'No',
+      s.grainMatch ? `Yes (${s.grainWaste}%)` : 'No',
       s.sheetSize.replace('x', '×'), round2(sum.area), round2(sum.lumberLF), sum.sheets,
       round2(sum.laminateArea), sum.laminateSheets]);
   });
@@ -967,6 +1085,9 @@ function exportPDF() {
 
   doc.text(doc.MARGIN, 'Cabinet Sheet Goods Report', 16, 1);
   doc.down(16);
+  const pj = readProject();
+  const pjBits = [pj.name && ('Project: ' + pj.name), pj.num && ('#' + pj.num), pj.addr].filter(Boolean);
+  if (pjBits.length) { doc.text(doc.MARGIN, pjBits.join('   '), 10, 0); doc.down(13); }
   doc.text(doc.MARGIN, 'Generated ' + d.generated, 9, 0);
   doc.down(22);
 
@@ -1021,10 +1142,29 @@ function exportPDF() {
   download('cabinet-report.pdf', doc.build(), 'application/pdf');
 }
 
+// ---- project information (global, persisted) ---------------------------
+function readProject() {
+  return { num: val('projNum'), name: val('projName'), addr: val('projAddr') };
+}
+function applyProject(p) {
+  document.getElementById('projNum').value = p.num || '';
+  document.getElementById('projName').value = p.name || '';
+  document.getElementById('projAddr').value = p.addr || '';
+}
+function persistProject() {
+  try { localStorage.setItem('cabinetProject', JSON.stringify(readProject())); } catch (e) { /* ignore */ }
+}
+try {
+  const p = JSON.parse(localStorage.getItem('cabinetProject'));
+  if (p) applyProject(p);
+} catch (e) { /* ignore */ }
+
 // ---- wire up -----------------------------------------------------------
 document.querySelectorAll('input, select').forEach(el => {
   el.addEventListener('input', render);
 });
+['projNum', 'projName', 'projAddr'].forEach(id =>
+  document.getElementById(id).addEventListener('input', persistProject));
 document.getElementById('saveBtn').addEventListener('click', saveCabinet);
 document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
 document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);

@@ -7,9 +7,16 @@ A simple, single-file web app that calculates the square footage of sheet goods
 
 Open `index.html` in any web browser — no build step or server required.
 
+0. (Optional) Fill in **Project Information** (Project #, Name, Address) — it is
+   saved in your browser and printed on the report header / exports.
 1. Enter the overall cabinet **width, height, and depth** (inches).
 2. Enter how many **doors, drawers, and shelves** the cabinet has.
-3. Choose the **material thickness** for the cabinet back, shelves, drawer
+3. Set the **Job-Specific Options** (Dust Panels, Full Sub-Top, Toe Kicks,
+   Semi-Exposed, Locks, Hinge Type, Shelf Supports) and a **Material** for each
+   component under **Cabinet Box Construction** (Plywood / MDF / Particleboard /
+   Marine Grade Plywood). Sheet goods are grouped by material **and** thickness,
+   so e.g. an MDF ¾" total is reported separately from a Plywood ¾" total.
+4. Choose the **material thickness** for the cabinet back, shelves, drawer
    boxes, and drawer bottoms. The carcass and door/drawer fronts are always
    3/4" material.
 4. Choose the **toe kick material**: 3/4" plywood, 3/4" PVC, or 2x4 treated
