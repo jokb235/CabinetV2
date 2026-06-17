@@ -210,6 +210,10 @@
         <label>Shelf Supports</label>
         <select id="optShelfSup"><option>5mm Pins</option><option>Recessed Pilasters</option></select>
       </div>
+      <div class="field">
+        <label>Drawer Slide Duty</label>
+        <select id="optSlideDuty"><option>Standard</option><option>Heavy</option></select>
+      </div>
     </div>
 
     <div class="field" style="margin-top:4px;">
@@ -370,6 +374,14 @@
       <div class="sub" id="laminateSub"></div>
     </div>
 
+    <div id="extrasBox" style="display:none; margin-top:16px;">
+      <table>
+        <caption>Edge banding &amp; hardware <span class="muted" id="extrasQty"></span></caption>
+        <thead><tr><th>Item</th><th class="num">Qty</th></tr></thead>
+        <tbody id="extrasBody"></tbody>
+      </table>
+    </div>
+
     <details style="margin-top:16px;">
       <summary>Per-cabinet component breakdown</summary>
       <table style="margin-top:12px;">
@@ -414,6 +426,14 @@
         <tbody id="reportBody"></tbody>
       </table>
       <p class="note" id="reportNote"></p>
+
+      <div id="reportExtras" style="display:none;">
+        <h2 style="margin-top:16px;">Edge Banding &amp; Hardware</h2>
+        <table>
+          <thead><tr><th>Item</th><th class="num">Total</th></tr></thead>
+          <tbody id="reportExtrasBody"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 </div>
@@ -489,7 +509,7 @@ function readForm() {
     mBox: val('mBox'), mBottom: val('mBottom'), mShelf: val('mShelf'), mDust: val('mDust'),
     optDustPanels: val('optDustPanels'), optSubTop: val('optSubTop'), optToeKicks: val('optToeKicks'),
     optSemiExposed: val('optSemiExposed'), optLocks: val('optLocks'),
-    optHinge: val('optHinge'), optShelfSup: val('optShelfSup'),
+    optHinge: val('optHinge'), optShelfSup: val('optShelfSup'), optSlideDuty: val('optSlideDuty'),
     drawerBank: document.getElementById('drawerBank').checked,
     grainMatch: document.getElementById('grainMatch').checked,
     drawerFaceH: num('drawerFaceH'),
@@ -524,7 +544,7 @@ function applyState(s) {
   setVal('optDustPanels', s.optDustPanels, 'No'); setVal('optSubTop', s.optSubTop, 'Yes');
   setVal('optToeKicks', s.optToeKicks, 'Individual'); setVal('optSemiExposed', s.optSemiExposed, 'None');
   setVal('optLocks', s.optLocks, 'No'); setVal('optHinge', s.optHinge, 'European Style');
-  setVal('optShelfSup', s.optShelfSup, '5mm Pins');
+  setVal('optShelfSup', s.optShelfSup, '5mm Pins'); setVal('optSlideDuty', s.optSlideDuty, 'Standard');
   document.getElementById('sheetSize').value = s.sheetSize;
   document.getElementById('toeKick').value = s.toeKick;
   document.getElementById('drawerBank').checked = !!s.drawerBank;
@@ -648,13 +668,34 @@ function calc(s) {
     if (s.lamBottom) addLam('Wall cabinet bottom', W * D / SQIN_PER_SQFT);
   }
 
+  // PVC edge banding (linear feet). Box & shelf edges = 0.5mm; fronts = 3mm.
+  const edgeBanding = {};
+  const addEB = (lbl, lf) => { if (lf > 0) edgeBanding[lbl] = (edgeBanding[lbl] || 0) + lf; };
+  addEB('0.5mm PVC', (2 * H + 2 * W) / 12);            // cabinet box front edges
+  addEB('0.5mm PVC', shelves * innerW / 12);           // shelf front edges
+  if (doors > 0 && doorH > 0) addEB('3mm PVC', doors * 2 * (W / doors + doorH) / 12); // door perimeters
+  if (drawers > 0) addEB('3mm PVC', drawers * 2 * (W + faceH) / 12);                  // drawer-face perimeters
+
+  // Hardware counts (per cabinet). Assumptions documented in the UI/README.
+  const european = (s.optHinge || 'European Style') === 'European Style';
+  const hardware = {
+    'Hinges': doors * 2,
+    'Hinge plates': european ? doors * 2 : 0,
+    'Drawer slides (std, pair)': (s.optSlideDuty || 'Standard') === 'Standard' ? drawers : 0,
+    'Drawer slides (HD, pair)': (s.optSlideDuty || 'Standard') === 'Heavy' ? drawers : 0,
+    'Cabinet pulls': doors + drawers,
+    'Shelf supports': shelves * 4,
+    'Magnetic catches': european ? 0 : doors,
+    'Locks': (s.optLocks || 'No') === 'Yes' ? doors + drawers : 0,
+  };
+
   return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor,
-    laminateParts, laminateArea, laminateSheetArea, lamW, lamH };
+    laminateParts, laminateArea, laminateSheetArea, lamW, lamH, edgeBanding, hardware };
 }
 
 function render() {
   const { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor,
-    laminateParts, laminateArea, laminateSheetArea, lamW, lamH } = calc(readForm());
+    laminateParts, laminateArea, laminateSheetArea, lamW, lamH, edgeBanding, hardware } = calc(readForm());
 
   // breakdown table
   const bb = document.getElementById('breakdownBody');
@@ -736,6 +777,24 @@ function render() {
   } else {
     laminateBox.style.display = 'none';
   }
+
+  // edge banding (linear ft) + hardware counts, scaled by quantity
+  const extrasBody = document.getElementById('extrasBody');
+  extrasBody.innerHTML = '';
+  const exRow = (item, qtyText) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${item}</td><td class="num">${qtyText}</td>`;
+    extrasBody.appendChild(tr);
+  };
+  let anyExtra = false;
+  Object.keys(edgeBanding).sort().forEach(k => {
+    if (edgeBanding[k] > 0) { anyExtra = true; exRow(`Edge banding — ${k}`, `${fmt(edgeBanding[k] * qty)} lf`); }
+  });
+  Object.keys(hardware).forEach(k => {
+    if (hardware[k] > 0) { anyExtra = true; exRow(k, String(hardware[k] * qty)); }
+  });
+  document.getElementById('extrasBox').style.display = anyExtra ? '' : 'none';
+  document.getElementById('extrasQty').textContent = `(× ${qty} cabinet${qty === 1 ? '' : 's'})`;
 }
 
 // ---- saved-cabinet report ----------------------------------------------
@@ -768,7 +827,14 @@ function summarize(s, agg) {
   });
   const laminateArea = r.laminateArea * s.qty;
   const laminateSheets = r.laminateSheetArea > 0 ? Math.ceil(laminateArea / r.laminateSheetArea) : 0;
-  return { area, sheets, lumberLF: r.lumberLF * s.qty, laminateArea, laminateSheets };
+  const edgeBanding = {}; Object.entries(r.edgeBanding).forEach(([k, v]) => edgeBanding[k] = v * s.qty);
+  const hardware = {}; Object.entries(r.hardware).forEach(([k, v]) => { if (v > 0) hardware[k] = v * s.qty; });
+  return { area, sheets, lumberLF: r.lumberLF * s.qty, laminateArea, laminateSheets, edgeBanding, hardware };
+}
+
+// Merge a per-cabinet {label: value} map into an accumulator.
+function mergeInto(acc, obj) {
+  Object.entries(obj || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v; });
 }
 
 function setEditing(on) {
@@ -827,10 +893,12 @@ function renderReport() {
 
   const agg = {};
   let totLumber = 0, totLamArea = 0, totLamSheets = 0;
+  const ebTot = {}, hwTot = {};
   savedCabinets.forEach((s, i) => {
     const sum = summarize(s, agg);
     totLumber += sum.lumberLF;
     totLamArea += sum.laminateArea; totLamSheets += sum.laminateSheets;
+    mergeInto(ebTot, sum.edgeBanding); mergeInto(hwTot, sum.hardware);
     const div = document.createElement('div');
     div.className = 'saved-item' + (i === editIndex ? ' editing' : '');
     div.innerHTML = `
@@ -876,6 +944,19 @@ function renderReport() {
     (totLumber > 0 ? ` Toe-kick lumber: ${fmt(totLumber)} linear ft (≈ ${Math.ceil(totLumber / 8)} eight-foot 2x4s).` : '') +
     (totLamArea > 0 ? ` Plastic laminate: ${fmt(totLamArea)} ft² (≈ ${totLamSheets} sheet${totLamSheets === 1 ? '' : 's'}).` : '') +
     ` Sheet counts are summed per cabinet type using each type's own sheet size and waste setting.`;
+
+  // edge banding + hardware totals
+  const reb = document.getElementById('reportExtrasBody');
+  reb.innerHTML = '';
+  const rebRow = (item, v) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${item}</td><td class="num">${v}</td>`;
+    reb.appendChild(tr);
+  };
+  let anyExtra = false;
+  Object.keys(ebTot).sort().forEach(k => { if (ebTot[k] > 0) { anyExtra = true; rebRow(`Edge banding — ${k}`, `${fmt(ebTot[k])} lf`); } });
+  Object.keys(hwTot).forEach(k => { if (hwTot[k] > 0) { anyExtra = true; rebRow(k, hwTot[k]); } });
+  document.getElementById('reportExtras').style.display = anyExtra ? '' : 'none';
 }
 
 // ---- CSV export --------------------------------------------------------
@@ -897,17 +978,19 @@ function download(filename, text, type) {
 function buildReportData() {
   const agg = {};
   let totLumber = 0, totLamArea = 0, totLamSheets = 0;
+  const ebTot = {}, hwTot = {};
   const cabinets = savedCabinets.map(s => {
     const sum = summarize(s, agg);
     totLumber += sum.lumberLF;
     totLamArea += sum.laminateArea; totLamSheets += sum.laminateSheets;
+    mergeInto(ebTot, sum.edgeBanding); mergeInto(hwTot, sum.hardware);
     return { s, sum };
   });
   const groups = Object.values(agg)
     .sort((a, b) => a.material.localeCompare(b.material) || a.thick - b.thick);
   const gArea = groups.reduce((t, g) => t + g.area, 0);
   const gSheets = groups.reduce((t, g) => t + g.sheets, 0);
-  return { cabinets, groups, gArea, gSheets, totLumber, totLamArea, totLamSheets,
+  return { cabinets, groups, gArea, gSheets, totLumber, totLamArea, totLamSheets, ebTot, hwTot,
     generated: new Date().toLocaleString() };
 }
 
@@ -956,6 +1039,18 @@ function exportCSV() {
     rows.push([]);
     rows.push(['Plastic laminate (ft²)', round2(d.totLamArea)]);
     rows.push(['Laminate sheets (est.)', d.totLamSheets]);
+  }
+  const ebKeys = Object.keys(d.ebTot).filter(k => d.ebTot[k] > 0).sort();
+  if (ebKeys.length) {
+    rows.push([]);
+    rows.push(['Edge Banding (linear ft)']);
+    ebKeys.forEach(k => rows.push([k, round2(d.ebTot[k])]));
+  }
+  const hwKeys = Object.keys(d.hwTot).filter(k => d.hwTot[k] > 0);
+  if (hwKeys.length) {
+    rows.push([]);
+    rows.push(['Hardware (counts)']);
+    hwKeys.forEach(k => rows.push([k, d.hwTot[k]]));
   }
   const csv = rows.map(r => r.map(csvCell).join(',')).join('\n');
   download('cabinet-report.csv', csv, 'text/csv');
@@ -1055,7 +1150,7 @@ function pdfTable(doc, cols, rows, size, totalsRow) {
       if (c.align === 'r') doc.textRight(c.x, v, size);
       else {
         const max = c.w ? Math.floor(c.w / (size * 0.5)) : 999;
-        doc.text(c.x, String(v).length > max ? String(v).slice(0, max - 1) + '…' : v, size, 0);
+        doc.text(c.x, String(v).length > max ? String(v).slice(0, max - 1) + '.' : v, size, 0);
       }
     });
     doc.down(size + 4);
@@ -1137,6 +1232,23 @@ function exportPDF() {
     doc.down(12);
     doc.text(doc.MARGIN, `Plastic laminate: ${fmt(d.totLamArea)} ft2 ` +
       `(~ ${d.totLamSheets} laminate sheet${d.totLamSheets === 1 ? '' : 's'})`, 10, 0);
+  }
+
+  // Edge Banding & Hardware table
+  const ebKeys = Object.keys(d.ebTot).filter(k => d.ebTot[k] > 0).sort();
+  const hwKeys = Object.keys(d.hwTot).filter(k => d.hwTot[k] > 0);
+  if (ebKeys.length || hwKeys.length) {
+    doc.down(20);
+    if (doc.needsPage(60)) doc.addPage();
+    doc.text(doc.MARGIN, 'Edge Banding & Hardware', 12, 1);
+    doc.down(15);
+    const exCols = [
+      { h: 'Item', x: 40, align: 'l', w: 340 },
+      { h: 'Total', x: 470, align: 'r' },
+    ];
+    const exRows = ebKeys.map(k => [`Edge banding - ${k}`, `${fmt(d.ebTot[k])} lf`])
+      .concat(hwKeys.map(k => [k, String(d.hwTot[k])]));
+    pdfTable(doc, exCols, exRows, 9);
   }
 
   download('cabinet-report.pdf', doc.build(), 'application/pdf');

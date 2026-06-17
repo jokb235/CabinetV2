@@ -88,6 +88,31 @@ for (each toggleable):
 
 The laminate total (area and estimated sheets) appears in the live results, the
 saved-cabinet report, and both the CSV and PDF exports.
+
+## Edge banding & hardware
+
+The app also estimates **PVC edge banding** (linear feet) and **hardware counts**,
+shown in the live results and aggregated in the report and exports.
+
+Edge banding (grouped by tape, per the spec):
+
+| Edge | Tape | Length |
+|------|------|--------|
+| Cabinet box front edges | 0.5mm PVC | 2×Height + 2×Width |
+| Shelf front edges | 0.5mm PVC | Width per shelf |
+| Door / drawer-front perimeters | 3mm PVC | full perimeter of each front |
+
+Hardware counts (assumptions, per cabinet × quantity):
+
+| Item | Count |
+|------|-------|
+| Hinges | 2 per door |
+| Hinge plates | 1 per hinge (European hinges only) |
+| Drawer slides | 1 pair per drawer (Standard or Heavy per the option) |
+| Cabinet pulls | 1 per door + 1 per drawer |
+| Shelf supports | 4 per shelf |
+| Magnetic catches | 1 per door (5-Knuckle hinges only) |
+| Locks | 1 per door + drawer when Locks = Yes |
 | Drawer faces | Width × drawer face height (default 6") |
 | Drawer box sides / front / back | box height is always 2" shorter than the face |
 | Drawer bottoms | inner width × box depth |
