@@ -218,6 +218,21 @@
 
     <div class="field" style="margin-top:4px;">
       <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input id="optAdaSink" type="checkbox" style="width:auto;">
+        ADA Sink Base
+        <span class="hint" style="font-weight:400;">— adds ADA panel support hardware</span>
+      </label>
+    </div>
+    <div class="field" style="margin-top:-4px;">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input id="optWardrobe" type="checkbox" style="width:auto;">
+        Teacher's Wardrobe
+        <span class="hint" style="font-weight:400;">— adds a coat rod &amp; flanges</span>
+      </label>
+    </div>
+
+    <div class="field" style="margin-top:4px;">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
         <input id="drawerBank" type="checkbox" style="width:auto;">
         Drawer Bank
         <span class="hint" style="font-weight:400;">— drawers evenly split the full cabinet height (no doors)</span>
@@ -510,6 +525,8 @@ function readForm() {
     optDustPanels: val('optDustPanels'), optSubTop: val('optSubTop'), optToeKicks: val('optToeKicks'),
     optSemiExposed: val('optSemiExposed'), optLocks: val('optLocks'),
     optHinge: val('optHinge'), optShelfSup: val('optShelfSup'), optSlideDuty: val('optSlideDuty'),
+    optAdaSink: document.getElementById('optAdaSink').checked,
+    optWardrobe: document.getElementById('optWardrobe').checked,
     drawerBank: document.getElementById('drawerBank').checked,
     grainMatch: document.getElementById('grainMatch').checked,
     drawerFaceH: num('drawerFaceH'),
@@ -545,6 +562,8 @@ function applyState(s) {
   setVal('optToeKicks', s.optToeKicks, 'Individual'); setVal('optSemiExposed', s.optSemiExposed, 'None');
   setVal('optLocks', s.optLocks, 'No'); setVal('optHinge', s.optHinge, 'European Style');
   setVal('optShelfSup', s.optShelfSup, '5mm Pins'); setVal('optSlideDuty', s.optSlideDuty, 'Standard');
+  document.getElementById('optAdaSink').checked = !!s.optAdaSink;
+  document.getElementById('optWardrobe').checked = !!s.optWardrobe;
   document.getElementById('sheetSize').value = s.sheetSize;
   document.getElementById('toeKick').value = s.toeKick;
   document.getElementById('drawerBank').checked = !!s.drawerBank;
@@ -678,6 +697,11 @@ function calc(s) {
 
   // Hardware counts (per cabinet). Assumptions documented in the UI/README.
   const european = (s.optHinge || 'European Style') === 'European Style';
+  const locked = (s.optLocks || 'No') === 'Yes';
+  // One lock per lockable section (the active door bank, and the drawer bank).
+  const locks = locked ? ((doors >= 1 ? 1 : 0) + (drawers >= 1 ? 1 : 0)) : 0;
+  // In a locking multi-door cabinet, the non-locking doors get elbow catches.
+  const elbowCatches = (locked && doors >= 2) ? doors - 1 : 0;
   const hardware = {
     'Hinges': doors * 2,
     'Hinge plates': european ? doors * 2 : 0,
@@ -686,7 +710,11 @@ function calc(s) {
     'Cabinet pulls': doors + drawers,
     'Shelf supports': shelves * 4,
     'Magnetic catches': european ? 0 : doors,
-    'Locks': (s.optLocks || 'No') === 'Yes' ? doors + drawers : 0,
+    'Locks': locks,
+    'Elbow catches': elbowCatches,
+    'ADA panel supports': s.optAdaSink ? 2 : 0,
+    'Coat rod': s.optWardrobe ? 1 : 0,
+    'Coat rod flanges': s.optWardrobe ? 2 : 0,
   };
 
   return { parts, byGroup, qty, sheetArea, sheetW, sheetH, lumberLF, grainMatch, wasteFactor,
@@ -1011,7 +1039,7 @@ function exportCSV() {
   rows.push(['Name', 'Width', 'Height', 'Depth', 'Qty', 'Doors', 'Drawers', 'Shelves',
     'Core mat.', 'Front mat.', 'Back', 'Back mat.', 'Shelf', 'Shelf mat.',
     'Drawer box', 'Drawer bottom', 'Toe kick', 'Toe kicks', 'Dust panels', 'Full sub-top',
-    'Semi-exposed', 'Locks', 'Hinge type', 'Shelf supports', 'Drawer bank',
+    'Semi-exposed', 'Locks', 'Hinge type', 'Shelf supports', 'ADA sink', 'Wardrobe', 'Drawer bank',
     'Grain match', 'Sheet size', 'Sheet goods (ft²)', 'Toe-kick lumber (lf)', 'Sheets',
     'Laminate (ft²)', 'Laminate sheets']);
   d.cabinets.forEach(({ s, sum }) => {
@@ -1020,7 +1048,8 @@ function exportCSV() {
       label(s.tShelf), s.mShelf || 'Plywood', label(s.tBox), label(s.tBottom), TOE_LABELS[s.toeKick],
       s.optToeKicks || 'Individual', s.optDustPanels || 'No', s.optSubTop || 'Yes',
       s.optSemiExposed || 'None', s.optLocks || 'No', s.optHinge || 'European Style',
-      s.optShelfSup || '5mm Pins', s.drawerBank ? 'Yes' : 'No',
+      s.optShelfSup || '5mm Pins', s.optAdaSink ? 'Yes' : 'No', s.optWardrobe ? 'Yes' : 'No',
+      s.drawerBank ? 'Yes' : 'No',
       s.grainMatch ? `Yes (${s.grainWaste}%)` : 'No',
       s.sheetSize.replace('x', '×'), round2(sum.area), round2(sum.lumberLF), sum.sheets,
       round2(sum.laminateArea), sum.laminateSheets]);
