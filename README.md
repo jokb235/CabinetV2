@@ -112,7 +112,7 @@ Hardware counts (assumptions, per cabinet × quantity):
 | Cabinet pulls | 1 per door + 1 per drawer |
 | Shelf supports | 4 per shelf |
 | Magnetic catches | 1 per door (5-Knuckle hinges only) |
-| Locks | 1 per door bank + 1 per drawer bank when Locks = Yes |
+| Locks | 1 per door bank + 1 per drawer when Locks = Yes |
 | Elbow catches | non-locking doors (doors − 1) when Locks = Yes |
 | ADA panel supports | 2 when **ADA Sink Base** is checked |
 | Coat rod / flanges | 1 rod + 2 flanges when **Teacher's Wardrobe** is checked |

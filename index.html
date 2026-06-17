@@ -698,8 +698,8 @@ function calc(s) {
   // Hardware counts (per cabinet). Assumptions documented in the UI/README.
   const european = (s.optHinge || 'European Style') === 'European Style';
   const locked = (s.optLocks || 'No') === 'Yes';
-  // One lock per lockable section (the active door bank, and the drawer bank).
-  const locks = locked ? ((doors >= 1 ? 1 : 0) + (drawers >= 1 ? 1 : 0)) : 0;
+  // One lock on the active door bank, plus one lock per drawer.
+  const locks = locked ? ((doors >= 1 ? 1 : 0) + drawers) : 0;
   // In a locking multi-door cabinet, the non-locking doors get elbow catches.
   const elbowCatches = (locked && doors >= 2) ? doors - 1 : 0;
   const hardware = {
