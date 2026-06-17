@@ -25,6 +25,18 @@ cookies you add later on `=== 'accepted'`.
 > formulas. To keep the math private it would have to run on a server that only
 > returns results.
 
+## Tests
+
+The calculation engine (`calc.js`) has a dependency-free test suite. Run it with:
+
+```
+node test.js      # or: npm test
+```
+
+It loads `calc.js` and checks the carcass/material grouping, sub-top, dust
+panels, toe kick, drawer bank, laminate, edge banding, hardware counts, and the
+`summarize` quantity scaling. It exits non-zero on failure (CI-friendly).
+
 ## Usage
 
 Open `index.html` in any web browser — no build step or server required

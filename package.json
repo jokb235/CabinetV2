@@ -1,0 +1,10 @@
+{
+  "name": "cabinetv2",
+  "version": "1.0.0",
+  "description": "Cabinet sheet-goods calculator",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
